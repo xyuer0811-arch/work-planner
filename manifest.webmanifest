@@ -1,0 +1,18 @@
+{
+  "name": "小鱼生活台",
+  "short_name": "小鱼台",
+  "description": "日程·记账·健康·学习·工作统合台",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f7f3ef",
+  "theme_color": "#7aada0",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjggMTI4Ij4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjN2VjOGM4Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzViYThhOCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPGNpcmNsZSBjeD0iNjQiIGN5PSI2NCIgcj0iNjAiIGZpbGw9IiNlOGY2ZjQiLz4KICA8ZWxsaXBzZSBjeD0iNTgiIGN5PSI2NiIgcng9IjM2IiByeT0iMjYiIGZpbGw9InVybCgjZykiLz4KICA8cGF0aCBkPSJNOTQgNjYgTDExOCA0OCBMMTEyIDY2IEwxMTggODQgWiIgZmlsbD0iIzViYThhOCIvPgogIDxwYXRoIGQ9Ik00MCA0OCBRNDggMzYgNTggNDIiIGZpbGw9IiM2YmI1YjUiLz4KICA8Y2lyY2xlIGN4PSI0OCIgY3k9IjYwIiByPSI1IiBmaWxsPSIjZmZmIi8+CiAgPGNpcmNsZSBjeD0iNDkiIGN5PSI2MCIgcj0iMi41IiBmaWxsPSIjMmE0YTRhIi8+CiAgPGVsbGlwc2UgY3g9IjM2IiBjeT0iNzIiIHJ4PSI0IiByeT0iMyIgZmlsbD0iI2Y0YTZhNiIgb3BhY2l0eT0iLjciLz4KICA8cGF0aCBkPSJNNzAgNzggUTc4IDg0IDg2IDc4IiBzdHJva2U9IiM0YTg4ODgiIGZpbGw9Im5vbmUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+Cjwvc3ZnPg==",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
