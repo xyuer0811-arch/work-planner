@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#7aada0">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="小鱼台">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="format-detection" content="telephone=no">
   <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjggMTI4Ij4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjN2VjOGM4Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzViYThhOCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPGNpcmNsZSBjeD0iNjQiIGN5PSI2NCIgcj0iNjAiIGZpbGw9IiNlOGY2ZjQiLz4KICA8ZWxsaXBzZSBjeD0iNTgiIGN5PSI2NiIgcng9IjM2IiByeT0iMjYiIGZpbGw9InVybCgjZykiLz4KICA8cGF0aCBkPSJNOTQgNjYgTDExOCA0OCBMMTEyIDY2IEwxMTggODQgWiIgZmlsbD0iIzViYThhOCIvPgogIDxwYXRoIGQ9Ik00MCA0OCBRNDggMzYgNTggNDIiIGZpbGw9IiM2YmI1YjUiLz4KICA8Y2lyY2xlIGN4PSI0OCIgY3k9IjYwIiByPSI1IiBmaWxsPSIjZmZmIi8+CiAgPGNpcmNsZSBjeD0iNDkiIGN5PSI2MCIgcj0iMi41IiBmaWxsPSIjMmE0YTRhIi8+CiAgPGVsbGlwc2UgY3g9IjM2IiBjeT0iNzIiIHJ4PSI0IiByeT0iMyIgZmlsbD0iI2Y0YTZhNiIgb3BhY2l0eT0iLjciLz4KICA8cGF0aCBkPSJNNzAgNzggUTc4IDg0IDg2IDc4IiBzdHJva2U9IiM0YTg4ODgiIGZpbGw9Im5vbmUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+Cjwvc3ZnPg==">
   <link rel="manifest" href="manifest.webmanifest">
   <title>小鱼生活台</title>
@@ -32,8 +36,12 @@
       --transition: 0.18s ease;
     }
 
-    html {
+    html, body {
       height: 100%;
+      overflow: hidden;
+    }
+
+    html {
       -webkit-text-size-adjust: 100%;
     }
 
@@ -52,8 +60,12 @@
     #app {
       display: flex;
       flex-direction: row;
-      min-height: 100vh;
-      min-height: 100dvh;
+      height: 100%;
+      height: -webkit-fill-available;
+      height: 100dvh;
+      max-height: 100dvh;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
     }
 
     #nav {
@@ -62,6 +74,8 @@
       top: 0;
       bottom: 0;
       width: var(--nav-w);
+      height: 100%;
+      height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: stretch;
@@ -71,23 +85,31 @@
       border-right: 1px solid var(--line);
       overflow-y: auto;
       overflow-x: hidden;
-      z-index: 100;
+      z-index: 200;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      flex-shrink: 0;
     }
 
     #main {
       flex: 1;
+      width: calc(100% - var(--nav-w));
       margin-left: var(--nav-w);
+      height: 100%;
+      min-height: 0;
       padding-top: calc(12px + env(safe-area-inset-top, 0px));
       padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
       overflow-y: auto;
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
     }
 
     #page {
       padding: 20px 24px 32px;
       max-width: 960px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     /* ── Nav items ── */
@@ -949,29 +971,142 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      flex-wrap: wrap;
     }
+    .day-today-bar { margin: -4px 0 4px; }
+    .sched-sticky {
+      position: -webkit-sticky;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      padding: 4px 0 10px;
+      margin: 0 0 10px;
+      background: linear-gradient(180deg, rgba(245, 240, 234, 0.96) 60%, rgba(245, 240, 234, 0.88));
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+    }
+    .sched-sticky h2 { margin-bottom: 8px; }
+    .sched-pin-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .sched-pin {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      min-height: 40px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .sched-pin.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .sched-today-btn {
+      margin-left: auto;
+      min-height: 40px;
+    }
+    .sched-more-tabs { margin: 0; }
     .tl-board { padding: 14px 16px; }
     .tl-title { margin: 0 0 12px; font-size: 15px; font-weight: 700; }
-    .tl-axis {
-      position: relative;
-      max-height: min(70vh, 640px);
+    .tl-scale-wrap {
+      max-height: min(72vh, 720px);
       overflow-y: auto;
-      padding-right: 4px;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: #fff;
     }
-    .tl-row {
-      display: grid;
-      grid-template-columns: 52px 16px 1fr;
-      gap: 0 8px;
-      min-height: 44px;
-      align-items: stretch;
+    .tl-canvas {
+      position: relative;
+      height: 1080px;
+      min-height: 1080px;
     }
-    .tl-hour {
-      font-size: 11px;
+    .tl-hours {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .tl-hour-mark {
+      position: absolute;
+      left: 0;
+      right: 0;
+      border-top: 1px dashed rgba(232, 223, 212, 0.75);
+      transform: translateY(-1px);
+    }
+    .tl-hour-mark.major {
+      border-top-color: var(--line);
+      border-top-style: solid;
+    }
+    .tl-hour-lab {
+      position: absolute;
+      left: 6px;
+      top: 2px;
+      font-size: 10px;
       font-weight: 700;
       color: var(--muted);
-      padding-top: 2px;
-      text-align: right;
-      line-height: 1.3;
+      background: rgba(255,255,255,0.85);
+      padding: 0 4px;
+    }
+    .tl-track {
+      position: absolute;
+      left: 52px;
+      right: 8px;
+      top: 0;
+      bottom: 0;
+    }
+    .tl-block {
+      position: absolute;
+      box-sizing: border-box;
+      border-radius: 8px;
+      padding: 4px 22px 4px 8px;
+      overflow: hidden;
+      font-size: 12px;
+      line-height: 1.25;
+      z-index: 2;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tl-block strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tl-block .tl-meta {
+      display: block;
+      font-size: 10px;
+      opacity: 0.9;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tl-block .wk-x {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      z-index: 3;
+    }
+    .tl-empty {
+      position: absolute;
+      top: 40%;
+      left: 0;
+      right: 0;
+      text-align: center;
+      padding: 12px;
     }
     .tl-chip {
       position: relative;
@@ -987,6 +1122,14 @@
     .tl-chip.urgent { font-weight: 600; }
     .tl-chip strong { font-size: 13px; font-weight: 700; }
     .tl-meta { font-size: 11px; opacity: 0.85; }
+    .a2hs-card { margin: 12px 0; }
+    .a2hs-steps {
+      margin: 8px 0 0;
+      padding-left: 1.25em;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+    .a2hs-steps li { margin-bottom: 4px; }
     .day-type-dot {
       width: 8px;
       height: 8px;
@@ -1156,7 +1299,10 @@
     }
     @media (max-width: 768px) {
       .urg-boards { grid-template-columns: 1fr; }
-      .tl-row { grid-template-columns: 64px 12px 1fr; }
+      .tl-canvas { height: 900px; min-height: 900px; }
+      .tl-track { left: 44px; }
+      .sched-today-btn { margin-left: 0; width: 100%; }
+      .sched-pin-row { gap: 6px; }
     }
 
     /* Todo Eisenhower matrix */
@@ -1731,7 +1877,27 @@
       border-style: dashed;
     }
     .word-card .sent { font-size: 13px; color: var(--muted); margin: 6px 0; }
-    .lang-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .lang-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center; }
+    .lang-goal-row {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 0;
+    }
+    .lang-goal-input {
+      width: 64px !important;
+      min-width: 64px !important;
+      text-align: center;
+      flex: 0 0 auto !important;
+    }
+    .lang-goal-btn {
+      min-width: 40px;
+      padding-left: 10px;
+      padding-right: 10px;
+      font-size: 18px;
+      line-height: 1;
+    }
     .lang-lesson-bar {
       display: flex;
       flex-wrap: wrap;
@@ -1842,6 +2008,66 @@
     .dialog-turn { margin-bottom: 6px; }
     .pie-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; margin: 8px 0 16px; }
     .tips { margin-top: 20px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin-top: 8px;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      background: var(--panel);
+    }
+    .data-table th,
+    .data-table td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+      word-break: break-word;
+    }
+    .data-table th {
+      background: var(--soft);
+      font-weight: 700;
+      white-space: nowrap;
+      color: var(--ink);
+    }
+    .data-table tbody tr:nth-child(even) { background: rgba(238, 245, 242, 0.45); }
+    .data-table .empty-cell {
+      text-align: center;
+      color: var(--muted);
+      padding: 18px 10px;
+    }
+    .tourism-card, .tourism-list-card { margin-top: 12px; }
+    .tourism-form {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .tourism-form label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .tourism-form .tourism-span2 { grid-column: 1 / -1; }
+    .tourism-form-actions {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: flex-start;
+    }
+    .tourism-table { min-width: 760px; }
+    .tourism-table .tour-num { width: 36px; color: var(--muted); }
+    .tourism-table .tour-date { white-space: nowrap; }
+    .tourism-table .tour-topic { font-weight: 600; min-width: 100px; }
+    .tourism-table .tour-actions {
+      white-space: nowrap;
+      min-width: 120px;
+    }
     .cloud-sync-card { margin: 12px 0; }
     .cloud-sync-card .form-row { margin-top: 8px; }
     .cloud-auth { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
@@ -2726,28 +2952,77 @@
       }
       .quote-track { animation-duration: 36s; font-size: 12px; }
       .acct-grid { grid-template-columns: repeat(2, 1fr); }
-      :root { --nav-w: 68px; }
+      :root { --nav-w: 64px; }
 
       .nav-item {
-        min-height: 60px;
+        min-height: 56px;
         font-size: 10px;
         gap: 2px;
         padding: 6px 2px;
       }
 
       .nav-item .fish-ico {
-        width: 30px;
-        height: 30px;
+        width: 28px;
+        height: 28px;
       }
 
       .nav-item .fish-ico svg {
-        width: 26px;
-        height: 26px;
+        width: 24px;
+        height: 24px;
+      }
+
+      .nav-item .label {
+        font-size: 9px;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       #page {
-        padding: 16px 14px 28px;
+        padding: 12px 12px 24px;
       }
+
+      h2 { font-size: 1.25rem; }
+      .form-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .form-row label { min-width: 0; }
+      .word-grid {
+        grid-template-columns: 1fr;
+      }
+      .lang-lesson-bar {
+        gap: 6px;
+      }
+      .lang-lesson-bar .btn,
+      .lang-actions .btn,
+      .lang-actions button {
+        min-height: 40px;
+      }
+      .data-table, table.simple, .table-wrap {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .sop-item-head,
+      .sop-step-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      #page input, #page select, #page textarea, #page button {
+        font-size: 16px; /* avoid iOS zoom on focus */
+      }
+      .lang-goal-input {
+        font-size: 16px !important;
+      }
+    }
+
+    @media (max-width: 420px) {
+      :root { --nav-w: 56px; }
+      .nav-item { min-height: 52px; padding: 4px 1px; }
+      .nav-item .label { font-size: 8px; }
+      #page { padding: 10px 8px 20px; }
     }
 
     .empty svg {
@@ -9136,12 +9411,23 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
 
   function renderSchedule() {
     var tab = state._schedTab || 'month';
-    var tabs = [
-      { id: 'month', label: '月计划' }, { id: 'week', label: '周计划' }, { id: 'day', label: '日计划' },
-      { id: 'classes', label: '循环课表' }, { id: 'todos', label: '待办' }
+    var pinTabs = [
+      { id: 'month', label: '月计划' },
+      { id: 'week', label: '周计划' },
+      { id: 'day', label: '日计划' }
     ];
-    var tabHtml = tabs.map(function (t) {
-      return '<button class="tab' + (tab === t.id ? ' active' : '') + '" onclick="App.setSchedTab(\'' + t.id + '\')">' + t.label + '</button>';
+    var moreTabs = [
+      { id: 'classes', label: '循环课表' },
+      { id: 'todos', label: '待办' }
+    ];
+    var pinHtml = pinTabs.map(function (t) {
+      return '<button type="button" class="sched-pin' + (tab === t.id ? ' active' : '') + '" onclick="App.setSchedTab(\'' + t.id + '\')">' + t.label + '</button>';
+    }).join('');
+    if (tab === 'day') {
+      pinHtml += '<button type="button" class="btn sched-today-btn" onclick="App.goSchedToday()">回到今天</button>';
+    }
+    var moreHtml = moreTabs.map(function (t) {
+      return '<button type="button" class="tab' + (tab === t.id ? ' active' : '') + '" onclick="App.setSchedTab(\'' + t.id + '\')">' + t.label + '</button>';
     }).join('');
     var body = '';
     if (tab === 'month') body = renderSchedMonth();
@@ -9150,7 +9436,12 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     else if (tab === 'classes') body = renderSchedClasses();
     else body = renderSchedTodos();
     document.getElementById('page').innerHTML =
-      '<h2>日程</h2><div class="tabs">' + tabHtml + '</div>' + body;
+      '<div class="sched-page">' +
+      '<div class="sched-sticky">' +
+      '<h2>日程</h2>' +
+      '<div class="sched-pin-row">' + pinHtml + '</div>' +
+      '<div class="tabs sched-more-tabs">' + moreHtml + '</div>' +
+      '</div>' + body + '</div>';
   }
 
   function currentSchedMonth() {
@@ -9536,6 +9827,94 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     return String(h).padStart(2, '0') + ':00';
   }
 
+  function minsToLabel(mins) {
+    var h = Math.floor(mins / 60);
+    var m = mins % 60;
+    if (h >= 24 && m === 0) return '24:00';
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+  }
+
+  /** Clamp event into 6:00–24:00 day axis; default duration 60m when end missing. */
+  function dayAxisSpan(startStr, endStr) {
+    var DAY_START = 6 * 60;
+    var DAY_END = 24 * 60;
+    var a = timeToMins(startStr);
+    if (a < 0) a = 9 * 60;
+    var b = timeToMins(endStr);
+    if (b < 0 || b <= a) b = a + 60;
+    a = Math.max(DAY_START, Math.min(a, DAY_END - 15));
+    b = Math.max(a + 15, Math.min(b, DAY_END));
+    return { start: a, end: b, topPct: ((a - DAY_START) / (DAY_END - DAY_START)) * 100, heightPct: ((b - a) / (DAY_END - DAY_START)) * 100 };
+  }
+
+  function assignTimelineLanes(blocks) {
+    var sorted = blocks.slice().sort(function (x, y) {
+      if (x.start !== y.start) return x.start - y.start;
+      return y.end - x.end;
+    });
+    var laneEnds = [];
+    sorted.forEach(function (b) {
+      var lane = 0;
+      while (lane < laneEnds.length && laneEnds[lane] > b.start) lane++;
+      b.lane = lane;
+      laneEnds[lane] = b.end;
+    });
+    sorted.forEach(function (b) {
+      var members = [b];
+      var changed = true;
+      while (changed) {
+        changed = false;
+        sorted.forEach(function (c) {
+          var hit = members.some(function (m) { return c.start < m.end && c.end > m.start; });
+          if (hit && members.indexOf(c) < 0) {
+            members.push(c);
+            changed = true;
+          }
+        });
+      }
+      var cm = 0;
+      members.forEach(function (m) { if (m.lane > cm) cm = m.lane; });
+      b.laneCount = cm + 1;
+    });
+    return sorted;
+  }
+
+  function buildDayTimelineHtml(blocks) {
+    var DAY_START = 6 * 60;
+    var DAY_END = 24 * 60;
+    var hours = [];
+    for (var h = 6; h <= 24; h++) {
+      var top = ((h * 60 - DAY_START) / (DAY_END - DAY_START)) * 100;
+      hours.push('<div class="tl-hour-mark' + (h % 2 === 0 ? ' major' : '') + '" style="top:' + top + '%">' +
+        '<span class="tl-hour-lab">' + formatHourLabel(h) + '</span></div>');
+    }
+    var packed = assignTimelineLanes(blocks);
+    var chips = packed.map(function (it) {
+      var col = typeColor(it.kind);
+      var border = it.urgency === 'urgent' ? ('2px solid ' + col) : ('2px dashed ' + col);
+      var w = 100 / it.laneCount;
+      var left = it.lane * w;
+      var del = it.source === 'event'
+        ? '<button type="button" class="wk-x" onclick="event.stopPropagation();App.delEvent(\'' + it.id + '\')">×</button>'
+        : '';
+      var timeLab = minsToLabel(it.start) + '–' + minsToLabel(it.end);
+      return '<div class="tl-block' + (it.urgency === 'urgent' ? ' urgent' : '') + '" style="' +
+        'top:' + it.topPct + '%;height:' + Math.max(it.heightPct, 2.2) + '%;' +
+        'left:calc(' + left + '% + 2px);width:calc(' + w + '% - 4px);' +
+        'background:' + softBg(col) + ';color:' + col + ';border:' + border + '">' +
+        del +
+        '<strong>' + esc(it.title) + '</strong>' +
+        '<span class="tl-meta">' + esc(it.kind) + ' · ' + esc(timeLab) + '</span>' +
+        '</div>';
+    }).join('');
+
+    return '<div class="tl-scale-wrap">' +
+      '<div class="tl-canvas">' +
+      '<div class="tl-hours">' + hours.join('') + '</div>' +
+      '<div class="tl-track">' + (chips || '<p class="muted tl-empty">这一天还没有安排，添加事件后会按时间段显示在轴上</p>') + '</div>' +
+      '</div></div>';
+  }
+
   function renderSchedDay() {
     ensureSchedule(state);
     var ds = state._schedDay || todayStr();
@@ -9548,7 +9927,6 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     });
     var dayClasses = state.schedule.classes.filter(function (c) { return c.weekday === wd; });
 
-    // 课表课程也进入紧急程度陈列（一律课程 / 普通）
     var classAsCards = dayClasses.map(function (c) {
       return {
         id: 'class:' + c.id,
@@ -9562,59 +9940,37 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       };
     });
 
-    function itemsForNode(nodeH) {
-      var list = [];
-      dayClasses.forEach(function (c) {
-        if (to2hNode(hourKey(c.start)) === nodeH) {
-          list.push({
-            id: 'c-' + c.id,
-            source: 'class',
-            title: c.title,
-            time: c.start,
-            endTime: c.end || '',
-            kind: '课程',
-            urgency: 'normal',
-            place: c.place || ''
-          });
-        }
+    var timelineBlocks = [];
+    dayClasses.forEach(function (c) {
+      if (!c.start) return;
+      var span = dayAxisSpan(c.start, c.end || '');
+      timelineBlocks.push({
+        id: 'c-' + c.id,
+        source: 'class',
+        title: c.title,
+        kind: '课程',
+        urgency: 'normal',
+        start: span.start,
+        end: span.end,
+        topPct: span.topPct,
+        heightPct: span.heightPct
       });
-      dayEvents.forEach(function (e) {
-        if (to2hNode(hourKey(e.time)) === nodeH) {
-          list.push({
-            id: e.id,
-            source: 'event',
-            title: e.title,
-            time: e.time || '',
-            endTime: e.endTime || '',
-            kind: e.kind || '其他',
-            urgency: e.urgency === 'urgent' ? 'urgent' : 'normal',
-            note: e.note || ''
-          });
-        }
+    });
+    dayEvents.forEach(function (e) {
+      if (!e.time) return;
+      var span = dayAxisSpan(e.time, e.endTime || '');
+      timelineBlocks.push({
+        id: e.id,
+        source: 'event',
+        title: e.title,
+        kind: e.kind || '其他',
+        urgency: e.urgency === 'urgent' ? 'urgent' : 'normal',
+        start: span.start,
+        end: span.end,
+        topPct: span.topPct,
+        heightPct: span.heightPct
       });
-      return list;
-    }
-
-    var rows = '';
-    for (var h = 6; h <= 24; h += 2) {
-      var items = itemsForNode(h);
-      var rangeLab = formatHourLabel(h);
-      var chips = items.map(function (it) {
-        var col = typeColor(it.kind);
-        var border = it.urgency === 'urgent' ? ('2px solid ' + col) : ('2px dashed ' + col);
-        var del = it.source === 'event'
-          ? '<button type="button" class="wk-x" onclick="App.delEvent(\'' + it.id + '\')">×</button>'
-          : '';
-        var meta = esc(it.kind) + (it.time ? ' ·' + esc(it.time) : '') + (it.endTime ? '–' + esc(it.endTime) : '');
-        return '<div class="tl-chip' + (it.urgency === 'urgent' ? ' urgent' : ' normal') + '" style="background:' + softBg(col) + ';color:' + col + ';border:' + border + '">' +
-          del + '<strong>' + esc(it.title) + '</strong>' +
-          '<span class="tl-meta">' + meta + '</span></div>';
-      }).join('') || '<span class="wk-empty"> </span>';
-      rows += '<div class="tl-row' + (h === 24 ? ' tl-end' : '') + '">' +
-        '<div class="tl-hour">' + rangeLab + '</div>' +
-        '<div class="tl-line"></div>' +
-        '<div class="tl-body">' + chips + '</div></div>';
-    }
+    });
 
     var typeOpts = types.filter(function (t) { return t.name !== '课程'; }).map(function (t) {
       return '<option value="' + esc(t.name) + '">' + esc(t.name) + '</option>';
@@ -9656,25 +10012,28 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         }).join('') + '</div></div>';
     }
 
+    var isToday = ds === todayStr();
+
     return '<div class="day-wrap">' +
       '<div class="cal-toolbar">' +
       '<button type="button" class="btn-ghost" onclick="App.shiftDay(-1)">‹ 昨天</button>' +
       '<div class="day-nav"><input type="date" id="sched-day-pick" value="' + ds + '" onchange="App.setSchedDay(this.value)">' +
-      '<span class="muted">周' + WEEKDAYS[wd] + ' · 2h 节点 · 6:00–24:00</span></div>' +
+      '<span class="muted">周' + WEEKDAYS[wd] + (isToday ? ' · 今天' : '') + ' · 按开始–结束时间占位</span></div>' +
       '<button type="button" class="btn-ghost" onclick="App.shiftDay(1)">明天 ›</button></div>' +
-      '<p class="muted week-tip">循环课表中的课程会自动出现在时间轴，类型固定为「课程」</p>' +
+      (!isToday ? '<div class="day-today-bar"><button type="button" class="btn" onclick="App.goSchedToday()">一键回到今天</button></div>' : '') +
+      '<p class="muted week-tip">循环课表中的课程会按上课时段出现在时间轴；未填结束时间时默认占 1 小时</p>' +
 
       '<div class="card tl-board">' +
-      '<h3 class="tl-title">当日时间轴</h3>' +
-      '<div class="tl-axis">' + rows + '</div></div>' +
+      '<h3 class="tl-title">当日时间轴 <span class="muted">6:00–24:00</span></h3>' +
+      buildDayTimelineHtml(timelineBlocks) + '</div>' +
 
       '<section class="card day-add">' +
       '<h3>添加事件 / 计划（同步到周计划）</h3>' +
-      '<p class="muted month-hint">与周计划共用同一份数据，类型与紧急程度保持一致。</p>' +
+      '<p class="muted month-hint">与周计划共用同一份数据；请选择开始与结束时间，事件会占据时间轴对应高度。</p>' +
       '<div class="form-row">' +
       '<input id="day-title" class="input" placeholder="标题">' +
-      '<input id="day-time" class="input" type="time" value="09:00">' +
-      '<input id="day-end" class="input" type="time" title="结束时间（可选）">' +
+      '<input id="day-time" class="input" type="time" value="09:00" title="开始">' +
+      '<input id="day-end" class="input" type="time" value="10:00" title="结束">' +
       '<select id="day-kind" class="input">' + typeOpts + '</select>' +
       '<select id="day-urgency" class="input">' +
       '<option value="normal">普通（虚线）</option><option value="urgent">紧急（实线）</option></select>' +
@@ -11280,7 +11639,14 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         (pending.length ? '（' + pending.length + '待确认）' : '') + '</button>' +
         '<button type="button" onclick="App.startQuiz(\'zh\')">中文掌握 对' + zhStats.correct + ' 错' + zhStats.wrong + '（' + zhStats.tested + '/' + zhStats.total + '）</button>' +
         '<button type="button" onclick="App.startQuiz(\'en\')">英文拼写 对' + enStats.correct + ' 错' + enStats.wrong + '（' + enStats.tested + '/' + enStats.total + '）</button>' +
-        '<label class="muted">本课词数 <input id="lang-goal" type="number" min="1" max="100" value="' + baseIds.length + '" style="width:64px" onchange="App.setLangGoal()" title="只改本课新词目标；前课未确认带入不计入"></label>' +
+        '<div class="lang-goal-row">' +
+        '<span class="muted">本课词数</span>' +
+        '<button type="button" class="btn btn-ghost lang-goal-btn" onclick="App.bumpLangGoal(-1)" aria-label="减少">−</button>' +
+        '<input id="lang-goal" class="input lang-goal-input" type="number" inputmode="numeric" min="1" max="100" value="' + baseIds.length +
+        '" onchange="App.setLangGoal()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();App.setLangGoal();}" title="只改本课新词目标；前课未确认带入不计入">' +
+        '<button type="button" class="btn btn-ghost lang-goal-btn" onclick="App.bumpLangGoal(1)" aria-label="增加">+</button>' +
+        '<button type="button" class="btn" onclick="App.setLangGoal()">应用</button>' +
+        '</div>' +
         '</div>' +
         '<div id="dialog-panel" class="dialog-panel" style="display:' + (showDialog ? 'block' : 'none') + '">' +
         (showDialog ? buildDialogPanelHtml(words) : '') + '</div>' +
@@ -11444,19 +11810,84 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
   }
 
   function renderXgTourism() {
-    var rows = state.xuegong.tourism.rows.slice().sort(function (a, b) { return b.date.localeCompare(a.date); });
-    var trs = rows.map(function (r) {
-      return '<tr><td>' + esc(r.date) + '</td><td>' + esc(r.slot) + '</td><td>' + esc(r.topic) + '</td>' +
-        '<td>' + esc(r.progress) + '</td><td>' + esc(r.owner) + '</td><td>' + esc(r.req) + '</td><td>' + esc(r.feedback) + '</td>' +
-        '<td><button onclick="App.editTourism(\'' + r.id + '\')">编</button> <button onclick="App.delTourism(\'' + r.id + '\')">删</button></td></tr>';
+    ensureXuegong(state);
+    var rows = state.xuegong.tourism.rows.slice().sort(function (a, b) {
+      return String(b.date || '').localeCompare(String(a.date || ''));
+    });
+    var trs = rows.map(function (r, i) {
+      return '<tr>' +
+        '<td class="tour-num">' + (i + 1) + '</td>' +
+        '<td class="tour-date">' + esc(r.date || '') + '</td>' +
+        '<td>' + esc(r.slot || '') + '</td>' +
+        '<td class="tour-topic">' + esc(r.topic || '') + '</td>' +
+        '<td>' + esc(r.progress || '') + '</td>' +
+        '<td>' + esc(r.owner || '') + '</td>' +
+        '<td>' + esc(r.req || '') + '</td>' +
+        '<td>' + esc(r.feedback || '') + '</td>' +
+        '<td class="tour-actions">' +
+        '<button type="button" class="btn btn-ghost" onclick="App.editTourism(\'' + r.id + '\')">编辑</button> ' +
+        '<button type="button" class="btn btn-ghost wk-clear" onclick="App.delTourism(\'' + r.id + '\')">删除</button>' +
+        '</td></tr>';
     }).join('');
-    return '<div class="form-row"><input id="tour-date" type="date" value="' + todayStr() + '">' +
-      '<input id="tour-slot" placeholder="时段"><input id="tour-topic" placeholder="主题">' +
-      '<input id="tour-progress" placeholder="进度"><input id="tour-owner" placeholder="负责人">' +
-      '<input id="tour-req" placeholder="要求"><input id="tour-fb" placeholder="反馈">' +
-      '<button onclick="App.addTourism()">添加</button></div>' +
-      '<table class="data-table"><thead><tr><th>日期</th><th>时段</th><th>主题</th><th>进度</th><th>负责人</th><th>要求</th><th>反馈</th><th></th></tr></thead>' +
-      '<tbody>' + (trs || '<tr><td colspan="8">暂无数据</td></tr>') + '</tbody></table>';
+    return '<section class="card tourism-card">' +
+      '<h3>添加项目</h3>' +
+      '<div class="tourism-form">' +
+      '<label>日期<input id="tour-date" class="input" type="date" value="' + todayStr() + '"></label>' +
+      '<label>时段<input id="tour-slot" class="input" placeholder="如上午 / 14:00-16:00"></label>' +
+      '<label>主题<input id="tour-topic" class="input" placeholder="活动主题"></label>' +
+      '<label>进度<input id="tour-progress" class="input" placeholder="如筹备中 / 已完成"></label>' +
+      '<label>负责人<input id="tour-owner" class="input" placeholder="姓名"></label>' +
+      '<label>要求<input id="tour-req" class="input" placeholder="任务要求"></label>' +
+      '<label class="tourism-span2">反馈<input id="tour-fb" class="input" placeholder="反馈或备注"></label>' +
+      '<div class="tourism-form-actions"><button type="button" class="btn" onclick="App.addTourism()">添加项目</button></div>' +
+      '</div></section>' +
+      '<section class="card tourism-list-card">' +
+      '<h3>项目列表 <span class="muted">共 ' + rows.length + ' 条</span></h3>' +
+      '<div class="table-wrap tourism-table-wrap">' +
+      '<table class="data-table tourism-table">' +
+      '<thead><tr>' +
+      '<th>#</th><th>日期</th><th>时段</th><th>主题</th><th>进度</th><th>负责人</th><th>要求</th><th>反馈</th><th>操作</th>' +
+      '</tr></thead>' +
+      '<tbody>' + (trs || '<tr><td colspan="9" class="empty-cell">暂无项目，请在上方添加</td></tr>') + '</tbody></table>' +
+      '</div></section>';
+  }
+
+  function isIosDevice() {
+    var ua = navigator.userAgent || '';
+    if (/iPad|iPhone|iPod/.test(ua)) return true;
+    return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  }
+
+  function isStandaloneApp() {
+    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+      window.navigator.standalone === true;
+  }
+
+  function renderA2hsBlock() {
+    if (isStandaloneApp()) {
+      return '<section class="card a2hs-card">' +
+        '<h3>添加到主屏幕</h3>' +
+        '<p class="muted">当前已是主屏幕 / 独立窗口模式，可像 App 一样使用。</p></section>';
+    }
+    if (isIosDevice()) {
+      return '<section class="card a2hs-card">' +
+        '<h3>添加到主屏幕（iPhone / iPad）</h3>' +
+        '<ol class="a2hs-steps">' +
+        '<li>用 <strong>Safari</strong> 打开本站（不要用微信内置浏览器）</li>' +
+        '<li>点底部分享按钮 <strong>□↑</strong></li>' +
+        '<li>下滑找到并点 <strong>添加到主屏幕</strong></li>' +
+        '<li>点右上角<strong>添加</strong></li>' +
+        '</ol>' +
+        '<p class="muted">添加后主屏幕会出现「小鱼台」图标，全屏打开、更跟手。</p></section>';
+    }
+    return '<section class="card a2hs-card">' +
+      '<h3>添加到主屏幕 / 桌面</h3>' +
+      '<ol class="a2hs-steps">' +
+      '<li><strong>Android Chrome</strong>：右上角 ⋮ →「添加到主屏幕」或「安装应用」</li>' +
+      '<li><strong>电脑 Chrome / Edge</strong>：地址栏右侧「安装」图标，或 ⋮ →「安装小鱼生活台」</li>' +
+      '</ol>' +
+      '<div class="form-row"><button type="button" class="btn" id="a2hs-install-btn" onclick="App.promptA2hs()">尝试一键安装</button></div>' +
+      '<p class="muted">若按钮无反应，请用上方菜单手动添加。</p></section>';
   }
 
   function renderSettings() {
@@ -11507,6 +11938,8 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<button type="button" onclick="App.saveSettings()">保存</button></div>' +
       '<h3>云同步</h3>' +
       cloudHtml +
+      '<h3>添加到主屏幕</h3>' +
+      renderA2hsBlock() +
       '<h3>数据</h3><button type="button" onclick="App.exportData()">导出 JSON</button>' +
       '<div class="import-block"><input type="file" id="settings-import-file" accept=".json" style="display:none">' +
       '<button type="button" onclick="App.pickImportFile(\'settings-import\')">选择文件导入</button>' +
@@ -11514,7 +11947,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<button type="button" onclick="App.importSettings()">导入</button></div>' +
       '<button type="button" onclick="App.clearData()" class="danger">清空全部数据</button>' +
       '<div class="tips"><p>💡 数据默认在本机 localStorage；配置云同步并登录后，多设备自动对齐。</p>' +
-      '<p>📱 可「添加到主屏幕」当 App 使用（iOS Safari / Android Chrome）。</p>' +
+      '<p>📱 iPhone 请用 Safari「分享 → 添加到主屏幕」；安卓 / 电脑见上方说明。</p>' +
       '<p>☁ 导出 JSON 仍建议偶尔做额外备份。</p></div>';
   }
 
@@ -11573,6 +12006,12 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     },
     setSchedTab: function (t) { state._schedTab = t; save(); render(); },
     setSchedDay: function (d) { state._schedDay = d; save(); render(); },
+    goSchedToday: function () {
+      state._schedDay = todayStr();
+      state._schedTab = 'day';
+      save(); render();
+      flash('已回到今天');
+    },
     shiftDay: function (delta) {
       var cur = state._schedDay || todayStr();
       state._schedDay = addDays(cur, delta);
@@ -11614,8 +12053,17 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       var title = (document.getElementById('day-title').value || '').trim();
       if (!title) { flash('请填写标题'); return; }
       var time = document.getElementById('day-time').value || '09:00';
+      var endTime = document.getElementById('day-end').value || '';
       var hk = hourKey(time);
       if (hk < 6 || hk > 24) { flash('时间请在 6:00–24:00'); return; }
+      if (endTime) {
+        var ek = hourKey(endTime);
+        if (ek < 6 || (ek === 0 && endTime.indexOf('00:') === 0)) { /* allow */ }
+        if (timeToMins(endTime) <= timeToMins(time)) {
+          flash('结束时间需晚于开始时间');
+          return;
+        }
+      }
       var kind = document.getElementById('day-kind').value || '';
       if (!kind) { flash('请先添加事件类型'); return; }
       state.schedule.events.push({
@@ -11623,7 +12071,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         title: title,
         date: state._schedDay || todayStr(),
         time: time,
-        endTime: document.getElementById('day-end').value || '',
+        endTime: endTime,
         type: 'event',
         kind: kind,
         urgency: document.getElementById('day-urgency').value === 'urgent' ? 'urgent' : 'normal',
@@ -11678,6 +12126,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     },
     removeDayType: function (name) {
       if (name === '课程') { flash('「课程」为系统类型，不可删除'); return; }
+      if (!confirm('确定删除日程类型「' + name + '」？此操作不可恢复。')) return;
       ensureSchedule(state);
       state.schedule.dayTypes = state.schedule.dayTypes.filter(function (t) { return t.name !== name; });
       state.schedule.dayTypes = normalizeDayTypes(state.schedule.dayTypes);
@@ -12572,13 +13021,21 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     speakWord: function (en) { speak(en); },
     setLangGoal: function () {
       var el = document.getElementById('lang-goal');
-      var n = el ? +el.value : 10;
+      var n = el ? parseInt(el.value, 10) : 10;
+      if (isNaN(n)) n = 10;
       state._langQuiz = null;
       var finalN = resizeCurrentLangLesson(n);
       if (el) el.value = finalN;
       save();
       flash('本课现为 ' + finalN + ' 词（今日已学单词已保留）');
       render();
+    },
+    bumpLangGoal: function (delta) {
+      var el = document.getElementById('lang-goal');
+      var cur = el ? parseInt(el.value, 10) : (state.lang && state.lang.dailyGoal) || 10;
+      if (isNaN(cur)) cur = 10;
+      if (el) el.value = Math.max(1, Math.min(100, cur + (delta || 0)));
+      App.setLangGoal();
     },
     readDialog: function () {
       var words = getDailyWords();
@@ -12948,17 +13405,19 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       save(); render();
     },
     addTourism: function () {
+      var topic = (document.getElementById('tour-topic').value || '').trim();
+      if (!topic) { flash('请填写主题'); return; }
       state.xuegong.tourism.rows.push({
         id: uid(),
         date: document.getElementById('tour-date').value || todayStr(),
         slot: document.getElementById('tour-slot').value || '',
-        topic: document.getElementById('tour-topic').value || '',
+        topic: topic,
         progress: document.getElementById('tour-progress').value || '',
         owner: document.getElementById('tour-owner').value || '',
         req: document.getElementById('tour-req').value || '',
         feedback: document.getElementById('tour-fb').value || ''
       });
-      save(); render();
+      save(); render(); flash('项目已添加 ✓');
     },
     editTourism: function (id) {
       var r = state.xuegong.tourism.rows.find(function (x) { return x.id === id; });
@@ -12979,6 +13438,21 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     saveSettings: function () {
       state.settings.name = document.getElementById('set-name').value || '小鱼';
       save(); render(); flash('已保存 ✓');
+    },
+    promptA2hs: function () {
+      if (window._a2hsDeferred) {
+        window._a2hsDeferred.prompt();
+        window._a2hsDeferred.userChoice.then(function () {
+          window._a2hsDeferred = null;
+          flash('请按系统提示完成安装');
+        });
+        return;
+      }
+      if (isIosDevice()) {
+        flash('请点 Safari 底部分享 → 添加到主屏幕');
+        return;
+      }
+      flash('请用浏览器菜单「添加到主屏幕 / 安装应用」');
     },
     saveCloudConfig: function () {
       var url = ((document.getElementById('cloud-url') || {}).value || '').trim();
@@ -13208,6 +13682,53 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     }
   };
 
+  (function wrapDestructiveActions() {
+    var labels = {
+      delScrap: '这条碎片',
+      delEvent: '这个日程',
+      delTodo: '这个待办',
+      delWeekPlan: '这个周计划',
+      delClass: '这门课程安排',
+      delRecord: '这条记账',
+      delExercise: '这条运动记录',
+      delWeight: '这条体重记录',
+      delDiet: '这条饮食记录',
+      delPeriodDay: '这条经期日志',
+      delPeriodCycle: '这个周期记录',
+      delPeriodLog: '这条经期记录',
+      delHobby: '这个爱好项目',
+      delHobbyRecord: '这条足迹',
+      delCourse: '这门课程及其任务笔记',
+      delStudyTask: '这个学习任务',
+      delStudyFile: '这个附件',
+      delNote: '这条笔记',
+      delWorkProject: '这个工作项目',
+      delWorkTask: '这个工作任务',
+      delWorkSub: '这个子任务',
+      delTutorProject: '这个家教项目',
+      delTutorLesson: '这节课时',
+      delSop: '这个 SOP 项目',
+      delSopStep: '这个步骤',
+      delSopTask: '这个小任务',
+      delTourism: '这条旅游系项目',
+      removeDayType: '这个日程类型',
+      removeWeekGoal: '这条周目标',
+      clearWeekField: '这段周总结'
+    };
+    var skip = { delWeekPlan: true, delWork: true, removeDayType: true };
+    Object.keys(App).forEach(function (key) {
+      if (skip[key]) return;
+      if (!labels[key] && key.indexOf('del') !== 0) return;
+      var orig = App[key];
+      if (typeof orig !== 'function') return;
+      App[key] = function () {
+        var tip = labels[key] || '该项';
+        if (!confirm('确定删除' + tip + '？此操作不可恢复。')) return;
+        return orig.apply(App, arguments);
+      };
+    });
+  })();
+
   window.App = App;
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -13252,6 +13773,10 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     });
     render();
     initCloudSync();
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      window._a2hsDeferred = e;
+    });
   });
 })();
   </script>
