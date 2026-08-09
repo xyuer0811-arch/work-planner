@@ -29,8 +29,7 @@
       --soft: #eef5f2;
       --ddl: #e89a8a;
       --ok: #7aada0;
-      --nav-w: 48px;
-      --nav-drawer-w: min(280px, 86vw);
+      --nav-w: 92px;
       --radius: 14px;
       --radius-sm: 8px;
       --shadow: 0 1px 3px rgba(74, 69, 64, 0.06);
@@ -79,143 +78,17 @@
       height: 100dvh;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      padding-top: calc(10px + env(safe-area-inset-top, 0px));
-      padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+      align-items: stretch;
+      padding-top: calc(12px + env(safe-area-inset-top, 0px));
+      padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
       background: var(--panel);
       border-right: 1px solid var(--line);
-      z-index: 220;
-      flex-shrink: 0;
-      overflow: visible;
-    }
-
-    #nav-scrim {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(40, 36, 32, 0.38);
-      z-index: 240;
-      -webkit-tap-highlight-color: transparent;
-    }
-    #app.nav-open #nav-scrim { display: block; }
-
-    .nav-toggle {
-      width: 40px;
-      height: 40px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: var(--soft);
-      color: var(--ink);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      cursor: pointer;
-      font-family: inherit;
-      flex-shrink: 0;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-    }
-    .nav-toggle-bars {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      width: 16px;
-    }
-    .nav-toggle-bars span {
-      display: block;
-      height: 2px;
-      width: 100%;
-      background: var(--ink);
-      border-radius: 1px;
-    }
-    .nav-toggle-txt {
-      font-size: 9px;
-      font-weight: 700;
-      color: var(--muted);
-      line-height: 1;
-    }
-    #app.nav-open .nav-toggle {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
-    }
-    #app.nav-open .nav-toggle-bars span { background: #fff; }
-    #app.nav-open .nav-toggle-txt { color: #fff; }
-
-    .nav-current {
-      margin-top: 10px;
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--soft);
-      pointer-events: none;
-    }
-    .nav-current .fish-ico,
-    .nav-current .fish-ico svg {
-      width: 28px;
-      height: 28px;
-    }
-
-    .nav-panel {
-      position: fixed;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: var(--nav-drawer-w);
-      max-width: 320px;
-      height: 100%;
-      height: 100dvh;
-      background: var(--panel);
-      border-right: 1px solid var(--line);
-      box-shadow: 8px 0 28px rgba(40, 36, 32, 0.12);
-      z-index: 250;
-      display: flex;
-      flex-direction: column;
-      padding: calc(12px + env(safe-area-inset-top, 0px)) 10px calc(12px + env(safe-area-inset-bottom, 0px));
-      transform: translateX(-105%);
-      transition: transform 0.22s ease;
       overflow-y: auto;
+      overflow-x: hidden;
+      z-index: 100;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
-    }
-    #app.nav-open .nav-panel { transform: translateX(0); }
-
-    .nav-panel-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 10px;
-      padding: 0 6px 8px;
-      border-bottom: 1px solid var(--line);
-    }
-    .nav-panel-head strong {
-      font-size: 15px;
-    }
-    .nav-panel-close {
-      border: none;
-      background: var(--soft);
-      color: var(--ink);
-      border-radius: 999px;
-      padding: 8px 12px;
-      font-size: 13px;
-      font-weight: 700;
-      font-family: inherit;
-      min-height: 36px;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-    }
-
-    .nav-panel-list {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+      flex-shrink: 0;
     }
 
     #main {
@@ -224,8 +97,8 @@
       margin-left: var(--nav-w);
       height: 100%;
       min-height: 0;
-      padding-top: calc(8px + env(safe-area-inset-top, 0px));
-      padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      padding-top: calc(12px + env(safe-area-inset-top, 0px));
+      padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
       overflow-y: auto;
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
@@ -233,35 +106,33 @@
     }
 
     #page {
-      padding: 12px 14px 24px;
+      padding: 20px 24px 32px;
       max-width: 960px;
       width: 100%;
       box-sizing: border-box;
     }
 
-    /* ── Nav items (drawer list) ── */
+    /* ── Nav items ── */
     .nav-item {
       display: flex;
-      flex-direction: row;
+      flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
-      gap: 12px;
+      justify-content: center;
+      gap: 4px;
       width: 100%;
-      min-height: 48px;
-      padding: 8px 12px;
+      min-height: 68px;
+      padding: 8px 4px;
       border: none;
-      border-radius: 12px;
       background: transparent;
       color: var(--muted);
       cursor: pointer;
       font-family: inherit;
-      font-size: 15px;
-      font-weight: 700;
+      font-size: 11px;
+      font-weight: 600;
       letter-spacing: 0.02em;
       transition: background var(--transition), color var(--transition);
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
-      text-align: left;
     }
 
     .nav-item:hover {
@@ -278,22 +149,21 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
       flex-shrink: 0;
     }
 
     .nav-item .fish-ico svg {
-      width: 28px;
-      height: 28px;
+      width: 32px;
+      height: 32px;
       display: block;
     }
 
     .nav-item .label {
       line-height: 1.2;
-      text-align: left;
+      text-align: center;
       white-space: nowrap;
-      font-size: 15px;
     }
 
     /* ── Cards ── */
@@ -3083,10 +2953,27 @@
       }
       .quote-track { animation-duration: 36s; font-size: 12px; }
       .acct-grid { grid-template-columns: repeat(2, 1fr); }
-      :root { --nav-w: 44px; }
+      :root { --nav-w: 68px; }
+
+      .nav-item {
+        min-height: 60px;
+        font-size: 10px;
+        gap: 2px;
+        padding: 6px 2px;
+      }
+
+      .nav-item .fish-ico {
+        width: 30px;
+        height: 30px;
+      }
+
+      .nav-item .fish-ico svg {
+        width: 26px;
+        height: 26px;
+      }
 
       #page {
-        padding: 8px 10px 20px;
+        padding: 12px 12px 24px;
       }
 
       h2 { font-size: 1.15rem; margin-bottom: 6px; }
@@ -3133,9 +3020,10 @@
     }
 
     @media (max-width: 420px) {
-      :root { --nav-w: 42px; }
-      .nav-toggle { width: 36px; height: 36px; }
-      #page { padding: 6px 8px 16px; }
+      :root { --nav-w: 60px; }
+      .nav-item { min-height: 54px; padding: 4px 2px; }
+      .nav-item .label { font-size: 9px; }
+      #page { padding: 10px 8px 20px; }
     }
 
     .empty svg {
@@ -3153,19 +3041,7 @@
 </head>
 <body>
   <div id="app">
-    <div id="nav-scrim" onclick="App.closeNav()" aria-hidden="true"></div>
-    <nav id="nav" aria-label="主导航">
-      <button type="button" class="nav-toggle" id="nav-toggle" onclick="App.toggleNav()" aria-expanded="false" aria-controls="nav-panel" title="打开模块菜单">
-        <span class="nav-toggle-bars" aria-hidden="true"><span></span><span></span><span></span></span>
-        <span class="nav-toggle-txt">菜单</span>
-      </button>
-      <div class="nav-current" id="nav-current" aria-hidden="true"></div>
-      <div class="nav-panel" id="nav-panel" role="dialog" aria-label="选择模块">
-        <div class="nav-panel-head">
-          <strong>选择模块</strong>
-          <button type="button" class="nav-panel-close" onclick="App.closeNav()">收起</button>
-        </div>
-        <div class="nav-panel-list">
+    <nav id="nav">
       <button class="nav-item active" data-mod="home" type="button">
         <span class="fish-ico">
           <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -3286,8 +3162,6 @@
         </span>
         <span class="label">设置</span>
       </button>
-        </div>
-      </div>
     </nav>
     <main id="main">
       <div id="page"></div>
@@ -9421,22 +9295,6 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     return Math.round((db - da) / 86400000);
   }
 
-  function setNavOpen(open) {
-    var app = document.getElementById('app');
-    var toggle = document.getElementById('nav-toggle');
-    if (!app) return;
-    app.classList.toggle('nav-open', !!open);
-    if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-  }
-
-  function syncNavCurrent() {
-    var cur = document.getElementById('nav-current');
-    if (!cur) return;
-    var mod = (state && state._mod) || 'home';
-    var active = document.querySelector('.nav-item[data-mod="' + mod + '"] .fish-ico');
-    cur.innerHTML = active ? active.outerHTML : '';
-  }
-
   function navigate(mod) {
     if (state && state.__corrupt) {
       state._mod = 'settings';
@@ -9450,7 +9308,6 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     if (mod === 'work') state._workTab = state._workTab || 'items';
     if (mod === 'xuegong') state._xgTab = state._xgTab || 'propaganda';
     if (mod === 'money') state._moneyView = state._moneyView || 'records';
-    setNavOpen(false);
     save();
     render();
   }
@@ -12118,16 +11975,10 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     document.querySelectorAll('[data-mod]').forEach(function (btn) {
       btn.classList.toggle('active', btn.getAttribute('data-mod') === mod);
     });
-    syncNavCurrent();
   }
 
   var App = {
     navigate: navigate,
-    toggleNav: function () {
-      var app = document.getElementById('app');
-      setNavOpen(!(app && app.classList.contains('nav-open')));
-    },
-    closeNav: function () { setNavOpen(false); },
     addScrap: function () {
       var text = (document.getElementById('scrap-text').value || '').trim();
       if (!text) return;
@@ -13923,13 +13774,9 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     });
     render();
     initCloudSync();
-    syncNavCurrent();
     window.addEventListener('beforeinstallprompt', function (e) {
       e.preventDefault();
       window._a2hsDeferred = e;
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') setNavOpen(false);
     });
   });
 })();
