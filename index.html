@@ -11288,9 +11288,59 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     return (WORDS || []).filter(function (w) { return w && w.id && !used[w.id]; });
   }
 
+  /** Pull word ids from lessons after `day` (mutates plan). */
+  function takeIdsFromFutureLessons(day, need) {
+    var taken = [];
+    if (need <= 0) return taken;
+    var plan = state.lang.plan || [];
+    for (var i = day + 1; i < plan.length && taken.length < need; i++) {
+      var lesson = (plan[i] || []).slice();
+      var keep = [];
+      for (var k = 0; k < lesson.length; k++) {
+        if (taken.length < need) taken.push(lesson[k]);
+        else keep.push(lesson[k]);
+      }
+      plan[i] = keep;
+    }
+    var head = plan.slice(0, day + 1);
+    var tail = plan.slice(day + 1).filter(function (les) { return les && les.length; });
+    state.lang.plan = head.concat(tail);
+    return taken;
+  }
+
+  /** Put unused ids back into the lesson right after `day`. */
+  function returnIdsToFutureLessons(day, ids) {
+    if (!ids || !ids.length) return;
+    var plan = state.lang.plan || [];
+    while (plan.length <= day) plan.push([]);
+    if (plan.length === day + 1) plan.push([]);
+    plan[day + 1] = ids.concat(plan[day + 1] || []);
+    state.lang.plan = plan;
+  }
+
+  /** Rebuild lessons after `day` using current dailyGoal chunk size. */
+  function rebalanceLangPlanTail(day) {
+    ensureLang(state);
+    day = Math.max(0, day || 0);
+    var plan = state.lang.plan || [];
+    var head = plan.slice(0, day + 1);
+    var seen = langMasteredSet();
+    head.forEach(function (lesson) {
+      (lesson || []).forEach(function (id) { if (id) seen[id] = true; });
+    });
+    var pool = langStudyPool().filter(function (w) { return !seen[w.id]; });
+    var per = langPerDay();
+    var tail = [];
+    for (var i = 0; i < pool.length; i += per) {
+      tail.push(pool.slice(i, i + per).map(function (w) { return w.id; }));
+    }
+    state.lang.plan = head.concat(tail);
+  }
+
   /**
    * Resize the current lesson in place.
    * Always keeps words already practiced today in this lesson.
+   * Expanding can pull words from later lessons (plan was pre-split).
    */
   function resizeCurrentLangLesson(n) {
     ensureLang(state);
@@ -11311,7 +11361,9 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       n = mustKeep.length;
       flash('本课今日已学 ' + mustKeep.length + ' 词，词数不能再少');
     }
+
     var next;
+    var returned = [];
     if (n <= lesson.length) {
       next = mustKeep.concat(optional.filter(function (id) {
         return mustKeep.indexOf(id) < 0;
@@ -11320,17 +11372,28 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         if (next.indexOf(id) < 0) next.unshift(id);
       });
       next = next.slice(0, Math.max(n, mustKeep.length));
+      var keepSet = {};
+      next.forEach(function (id) { keepSet[id] = true; });
+      lesson.forEach(function (id) {
+        if (id && !keepSet[id]) returned.push(id);
+      });
     } else {
-      var need = n - lesson.length;
-      var add = langRemainingWords().slice(0, need).map(function (w) { return w.id; });
-      next = lesson.concat(add);
-      if (add.length < need) {
-        flash('词库剩余不足，本课已加到 ' + next.length + ' 词');
+      next = lesson.slice();
+      var need = n - next.length;
+      var fromRemain = langRemainingWords().slice(0, need).map(function (w) { return w.id; });
+      next = next.concat(fromRemain);
+      need = n - next.length;
+      if (need > 0) {
+        var fromFuture = takeIdsFromFutureLessons(day, need);
+        next = next.concat(fromFuture);
       }
     }
+
     state.lang.plan[day] = next;
-    state.lang.dailyGoal = n;
-    return n;
+    if (returned.length) returnIdsToFutureLessons(day, returned);
+    state.lang.dailyGoal = next.length > 0 ? next.length : n;
+    rebalanceLangPlanTail(day);
+    return (state.lang.plan[day] || next).length;
   }
 
   function langWeakReason(entry) {
@@ -13031,10 +13094,15 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       var n = el ? parseInt(el.value, 10) : 10;
       if (isNaN(n) || n < 0) n = 0;
       state._langQuiz = null;
+      var wanted = n;
       var finalN = resizeCurrentLangLesson(n);
       if (el) el.value = finalN;
       save();
-      flash('本课现为 ' + finalN + ' 词（今日已学单词已保留）');
+      if (finalN < wanted) {
+        flash('本课已调整为 ' + finalN + ' 词（可调度单词不足 ' + wanted + '）');
+      } else {
+        flash('本课现为 ' + finalN + ' 词（今日已学单词已保留）');
+      }
       render();
     },
     bumpLangGoal: function (delta) {
