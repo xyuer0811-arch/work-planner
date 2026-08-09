@@ -11176,7 +11176,10 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
   }
 
   function langPerDay() {
-    return Math.max(1, Math.min(100, state.lang.dailyGoal || 10));
+    var n = parseInt(state.lang.dailyGoal, 10);
+    // 仅用于拆分后续课程时避免除零；本课词数本身不再设上下限
+    if (isNaN(n) || n < 1) return 1;
+    return n;
   }
 
   function langMasteredSet() {
@@ -11291,7 +11294,8 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
    */
   function resizeCurrentLangLesson(n) {
     ensureLang(state);
-    n = Math.max(1, Math.min(100, n || 10));
+    n = parseInt(n, 10);
+    if (isNaN(n) || n < 0) n = 0;
     var day = state.lang.day || 0;
     ensureLangLesson(day);
     var lesson = ((state.lang.plan || [])[day] || []).slice();
@@ -11312,7 +11316,6 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       next = mustKeep.concat(optional.filter(function (id) {
         return mustKeep.indexOf(id) < 0;
       })).slice(0, n);
-      // Ensure mustKeep always included even if slice edge cases
       mustKeep.forEach(function (id) {
         if (next.indexOf(id) < 0) next.unshift(id);
       });
@@ -11321,6 +11324,9 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       var need = n - lesson.length;
       var add = langRemainingWords().slice(0, need).map(function (w) { return w.id; });
       next = lesson.concat(add);
+      if (add.length < need) {
+        flash('词库剩余不足，本课已加到 ' + next.length + ' 词');
+      }
     }
     state.lang.plan[day] = next;
     state.lang.dailyGoal = n;
@@ -11643,8 +11649,8 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         '<div class="lang-goal-row">' +
         '<span class="muted">本课词数</span>' +
         '<button type="button" class="btn btn-ghost lang-goal-btn" onclick="App.bumpLangGoal(-1)" aria-label="减少">−</button>' +
-        '<input id="lang-goal" class="input lang-goal-input" type="number" inputmode="numeric" min="1" max="100" value="' + baseIds.length +
-        '" onchange="App.setLangGoal()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();App.setLangGoal();}" title="只改本课新词目标；前课未确认带入不计入">' +
+        '<input id="lang-goal" class="input lang-goal-input" type="number" inputmode="numeric" value="' + baseIds.length +
+        '" onchange="App.setLangGoal()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();App.setLangGoal();}" title="本课新词数量，无上下限；前课未确认带入不计入">' +
         '<button type="button" class="btn btn-ghost lang-goal-btn" onclick="App.bumpLangGoal(1)" aria-label="增加">+</button>' +
         '<button type="button" class="btn" onclick="App.setLangGoal()">应用</button>' +
         '</div>' +
@@ -13023,7 +13029,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     setLangGoal: function () {
       var el = document.getElementById('lang-goal');
       var n = el ? parseInt(el.value, 10) : 10;
-      if (isNaN(n)) n = 10;
+      if (isNaN(n) || n < 0) n = 0;
       state._langQuiz = null;
       var finalN = resizeCurrentLangLesson(n);
       if (el) el.value = finalN;
@@ -13033,9 +13039,11 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     },
     bumpLangGoal: function (delta) {
       var el = document.getElementById('lang-goal');
-      var cur = el ? parseInt(el.value, 10) : (state.lang && state.lang.dailyGoal) || 10;
+      var cur = el ? parseInt(el.value, 10) : (state.lang && state.lang.dailyGoal);
       if (isNaN(cur)) cur = 10;
-      if (el) el.value = Math.max(1, Math.min(100, cur + (delta || 0)));
+      cur = cur + (delta || 0);
+      if (cur < 0) cur = 0;
+      if (el) el.value = cur;
       App.setLangGoal();
     },
     readDialog: function () {
