@@ -45,6 +45,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     study: ['学习', '课程', '作业', '考试', '笔记', '复习', '论文'],
     work: ['工作', '备课', '教学', '学生', '教案', '办公'],
     lang: ['英语', '单词', '雅思', 'ielts', '口语', '听力'],
+    shopping: ['购物', '采购', 'shopping', '清单', '买菜'],
     xuegong: ['学工', '宣传', '文体', '旅游系', 'sop']
   };
 
@@ -142,6 +143,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       study: { courses: [], tasks: [], notes: [] },
       work: { projects: [], tutoring: [], prep: [], items: [], inbox: [] },
       lang: { day: 0, dailyGoal: 10, plan: [], progress: {}, practiced: {}, weak: [], mastered: [], quizLog: {} },
+      shopping: { modules: [] },
       xuegong: {
         history: { propaganda: { sops: [] }, culture: { sops: [] } },
         tourism: { rows: [] }
@@ -212,6 +214,8 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       if (typeof out.lang.progress !== 'object' || !out.lang.progress) out.lang.progress = {};
       if (!Array.isArray(out.lang.plan)) out.lang.plan = [];
       if (typeof out.lang.quizLog !== 'object' || !out.lang.quizLog) out.lang.quizLog = {};
+      if (!out.shopping || typeof out.shopping !== 'object') out.shopping = defaultState().shopping;
+      if (!Array.isArray(out.shopping.modules)) out.shopping.modules = [];
       if (!out.xuegong || typeof out.xuegong !== 'object') out.xuegong = defaultState().xuegong;
       if (!out.xuegong.history) out.xuegong.history = defaultState().xuegong.history;
       if (!out.xuegong.history.propaganda) out.xuegong.history.propaganda = { sops: [] };
@@ -592,6 +596,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     };
     if (opts.fromHobby) rec.fromHobby = true;
     if (opts.fromTutor) rec.fromTutor = true;
+    if (opts.fromShopping) rec.fromShopping = true;
     rec.sig = moneySig(rec);
     state.money.records.push(rec);
     var delta = io === 'in' ? amt : -amt;
@@ -1392,6 +1397,62 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<span class="muted sop-progress-label">' + (label || (pct + '%')) + '</span></div>';
   }
 
+  function ensureShopping(s) {
+    if (!s.shopping || typeof s.shopping !== 'object') s.shopping = { modules: [] };
+    if (!Array.isArray(s.shopping.modules)) s.shopping.modules = [];
+    s.shopping.modules.forEach(function (mod) {
+      if (!mod.id) mod.id = uid();
+      if (typeof mod.title !== 'string') mod.title = '模块';
+      if (typeof mod.note !== 'string') mod.note = '';
+      if (!Array.isArray(mod.lists)) mod.lists = [];
+      mod.lists.forEach(function (list) {
+        if (!list.id) list.id = uid();
+        if (typeof list.title !== 'string') list.title = '清单';
+        if (typeof list.note !== 'string') list.note = '';
+        if (!Array.isArray(list.items)) list.items = [];
+        list.items.forEach(function (it) {
+          if (!it.id) it.id = uid();
+          if (typeof it.name !== 'string') it.name = '';
+          if (it.qty == null) it.qty = '';
+          if (it.unit == null) it.unit = '';
+          if (typeof it.price !== 'number') it.price = parseFloat(it.price) || 0;
+          it.bought = !!it.bought;
+          if (it.moneyId == null) it.moneyId = '';
+          if (it.note == null) it.note = '';
+        });
+      });
+    });
+  }
+
+  function findShopModule(modId) {
+    ensureShopping(state);
+    return (state.shopping.modules || []).find(function (m) { return m.id === modId; }) || null;
+  }
+
+  function findShopList(modId, listId) {
+    var mod = findShopModule(modId);
+    if (!mod) return null;
+    return (mod.lists || []).find(function (l) { return l.id === listId; }) || null;
+  }
+
+  function findShopItem(modId, listId, itemId) {
+    var list = findShopList(modId, listId);
+    if (!list) return null;
+    return (list.items || []).find(function (i) { return i.id === itemId; }) || null;
+  }
+
+  function isWorkProjectComplete(p) {
+    var tasks = (p && p.tasks) || [];
+    if (!tasks.length) return false;
+    return tasks.every(function (t) { return !!t.done; });
+  }
+
+  function isSopProjectComplete(sop) {
+    normalizeSop(sop);
+    var prog = sopProjectProgress(sop);
+    return prog.total > 0 && prog.done >= prog.total;
+  }
+
   function ensureAll(s) {
     ensureScraps(s);
     ensureSchedule(s);
@@ -1401,6 +1462,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     ensureStudy(s);
     ensureWork(s);
     ensureLang(s);
+    ensureShopping(s);
     ensureXuegong(s);
     if (!s.settings) s.settings = { name: '小鱼' };
   }
@@ -3725,13 +3787,14 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       }).join('') || '<p class="muted wk-view-empty">还没有任务</p>';
 
       var projKey = 'work:proj:' + p.id;
-      return '<section class="card work-project' + (isOpen ? ' is-open' : '') + '">' +
+      var html = '<section class="card work-project' + (isOpen ? ' is-open' : '') + (isWorkProjectComplete(p) ? ' is-complete' : '') + '">' +
         '<div class="work-project-head" onclick="App.toggleWorkProject(\'' + p.id + '\')" role="button" tabindex="0">' +
         '<span class="study-chevron" aria-hidden="true"></span>' +
         '<div class="work-project-title">' +
         '<h3>' + esc(p.title) + '</h3>' +
         (p.note ? '<p class="muted">' + esc(p.note) + '</p>' : '') +
         '<p class="muted study-progress">任务 ' + taskDone + '/' + tasks.length +
+        (isWorkProjectComplete(p) ? ' · 已完成' : '') +
         (isOpen ? '' : ' · 点击展开') + '</p>' +
         '<div onclick="event.stopPropagation()">' + planSyncActionsHtml(projKey) + '</div></div>' +
         '<button type="button" class="btn-ghost wk-clear" onclick="event.stopPropagation();App.delWorkProject(\'' + p.id + '\')">清除项目</button></div>' +
@@ -3743,7 +3806,19 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         '<button type="button" class="btn" onclick="App.addWorkTask(\'' + p.id + '\')">添加</button></div>' +
         '<input id="wt-content-' + p.id + '" class="input work-task-content-input" placeholder="内容说明（可选）"></div>' +
         '<div class="work-task-list">' + taskHtml + '</div></div></section>';
-    }).join('') || '<p class="muted wk-view-empty">还没有项目，先创建一个吧</p>';
+      return { done: isWorkProjectComplete(p), html: html };
+    });
+    var activeHtml = cards.filter(function (r) { return !r.done; }).map(function (r) { return r.html; }).join('')
+      || (cards.length ? '' : '<p class="muted wk-view-empty">还没有项目，先创建一个吧</p>');
+    var doneRows = cards.filter(function (r) { return r.done; });
+    var doneHtml = doneRows.map(function (r) { return r.html; }).join('');
+    var showDone = !!state._workShowDone;
+    var doneSection = doneRows.length
+      ? '<section class="card done-fold-card">' +
+        '<button type="button" class="done-fold-toggle" onclick="App.toggleWorkDoneFold()">' +
+        (showDone ? '▾' : '▸') + ' 已完成项目（' + doneRows.length + '）</button>' +
+        '<div class="done-fold-body work-project-list"' + (showDone ? '' : ' hidden') + '>' + doneHtml + '</div></section>'
+      : '';
 
     return '<section class="card">' +
       '<h3>添加项目</h3>' +
@@ -3751,7 +3826,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<input id="wp-title" class="input" placeholder="项目名称">' +
       '<input id="wp-note" class="input" placeholder="简介（可选）">' +
       '<button type="button" class="btn" onclick="App.addWorkProject()">添加</button></div></section>' +
-      '<div class="work-project-list">' + cards + '</div>';
+      '<div class="work-project-list">' + activeHtml + '</div>' + doneSection;
   }
 
   function langPerDay() {
@@ -4435,20 +4510,35 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
           '<textarea id="sop-step-note-' + s.id + '" class="textarea" rows="2" placeholder="步骤内容备注（可选）"></textarea>';
       }
 
-      return '<div class="sop-item card">' +
-        '<div class="sop-item-head">' +
-        '<div><h4>' + esc(s.title) + ' <small class="muted">' + esc(s.date || '') + '</small></h4>' +
-        (s.note ? '<p class="muted sop-overall-note">' + esc(s.note) + '</p>' : '') +
-        '</div>' +
-        '<div class="sop-item-actions">' +
-        '<button type="button" class="btn btn-ghost" onclick="App.toggleSopOpen(\'' + s.id + '\')">' + (isOpen ? '收起' : '展开') + '</button>' +
-        '<button type="button" class="btn btn-ghost" onclick="App.delSop(\'' + dept + '\',\'' + s.id + '\')">删项目</button>' +
-        planSyncActionsHtml('xg:sop:' + dept + ':' + s.id) +
-        '</div></div>' +
-        renderProgressBar(proj.pct, '项目进度 ' + proj.done + '/' + proj.total + '（' + proj.pct + '%）') +
-        (isOpen ? '<div class="sop-steps-wrap">' + stepsHtml + '</div>' : '') +
-        '</div>';
-    }).join('') || '<p class="empty">暂无 SOP 项目</p>';
+      return {
+        done: isSopProjectComplete(s),
+        html: '<div class="sop-item card' + (isSopProjectComplete(s) ? ' is-complete' : '') + '">' +
+          '<div class="sop-item-head">' +
+          '<div><h4>' + esc(s.title) + ' <small class="muted">' + esc(s.date || '') + '</small></h4>' +
+          (s.note ? '<p class="muted sop-overall-note">' + esc(s.note) + '</p>' : '') +
+          '</div>' +
+          '<div class="sop-item-actions">' +
+          '<button type="button" class="btn btn-ghost" onclick="App.toggleSopOpen(\'' + s.id + '\')">' + (isOpen ? '收起' : '展开') + '</button>' +
+          '<button type="button" class="btn btn-ghost" onclick="App.delSop(\'' + dept + '\',\'' + s.id + '\')">删项目</button>' +
+          planSyncActionsHtml('xg:sop:' + dept + ':' + s.id) +
+          '</div></div>' +
+          renderProgressBar(proj.pct, '项目进度 ' + proj.done + '/' + proj.total + '（' + proj.pct + '%）' + (isSopProjectComplete(s) ? ' · 已完成' : '')) +
+          (isOpen ? '<div class="sop-steps-wrap">' + stepsHtml + '</div>' : '') +
+          '</div>'
+      };
+    });
+
+    var activeHtml = list.filter(function (r) { return !r.done; }).map(function (r) { return r.html; }).join('')
+      || (list.length ? '' : '<p class="empty">暂无 SOP 项目</p>');
+    var doneRows = list.filter(function (r) { return r.done; });
+    var doneHtml = doneRows.map(function (r) { return r.html; }).join('');
+    var showDone = !!state._xgShowDone;
+    var doneSection = doneRows.length
+      ? '<section class="card done-fold-card">' +
+        '<button type="button" class="done-fold-toggle" onclick="App.toggleXgDoneFold()">' +
+        (showDone ? '▾' : '▸') + ' 已完成项目（' + doneRows.length + '）</button>' +
+        '<div class="done-fold-body sop-list"' + (showDone ? '' : ' hidden') + '>' + doneHtml + '</div></section>'
+      : '';
 
     return '<section class="card sop-create">' +
       '<h3>添加 SOP 项目</h3>' +
@@ -4458,7 +4548,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<button type="button" class="btn" onclick="App.addSop(\'' + dept + '\')">添加项目</button></div>' +
       '<textarea id="sop-note" class="textarea" rows="2" placeholder="项目备注（可选）"></textarea>' +
       '<p class="muted">项目 → 添加步骤 → 点「编辑步骤」可改备注并添加小任务；项目 / 步骤 / 任务都会显示进度。</p>' +
-      '</section><div class="sop-list">' + list + '</div>';
+      '</section><div class="sop-list">' + activeHtml + '</div>' + doneSection;
   }
 
   function renderXgTourism() {
@@ -4543,6 +4633,117 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<p class="muted">若按钮无反应，请用上方菜单手动添加。</p></section>';
   }
 
+  function renderShopping() {
+    ensureShopping(state);
+    ensureMoney(state);
+    if (!state._shopOpen || typeof state._shopOpen !== 'object') state._shopOpen = {};
+    if (!state._shopListOpen || typeof state._shopListOpen !== 'object') state._shopListOpen = {};
+    var acctOpts = ACCOUNT_KEYS.map(function (k) {
+      return '<option value="' + k + '">' + ACCOUNT_LABELS[k] + '</option>';
+    }).join('');
+
+    var mods = state.shopping.modules || [];
+    var modHtml = mods.map(function (mod) {
+      var modOpen = !!state._shopOpen[mod.id];
+      var lists = mod.lists || [];
+      var openCount = 0;
+      var boughtCount = 0;
+      lists.forEach(function (L) {
+        (L.items || []).forEach(function (it) {
+          if (it.bought) boughtCount++;
+          else openCount++;
+        });
+      });
+
+      var listsHtml = lists.map(function (list) {
+        var listOpen = state._shopListOpen[list.id] !== false;
+        var items = list.items || [];
+        var pendingMoney = items.filter(function (it) { return it.bought && !it.moneyId; });
+        var itemsHtml = items.map(function (it) {
+          var qtyLab = (it.qty || it.unit) ? (' · ' + esc(String(it.qty || '') + (it.unit || ''))) : '';
+          var priceLab = it.price ? (' ¥' + Number(it.price).toFixed(2)) : '';
+          var moneyTag = it.moneyId ? '<span class="shop-money-tag">已记账</span>' : '';
+          return '<div class="shop-item' + (it.bought ? ' is-bought' : '') + '">' +
+            '<label class="shop-item-main">' +
+            '<input type="checkbox"' + (it.bought ? ' checked' : '') +
+            ' onchange="App.toggleShopItem(\'' + mod.id + '\',\'' + list.id + '\',\'' + it.id + '\')">' +
+            '<span>' + esc(it.name) + qtyLab + priceLab + '</span>' + moneyTag +
+            '</label>' +
+            '<div class="shop-item-actions">' +
+            (it.bought && !it.moneyId
+              ? '<button type="button" class="btn-ghost" onclick="App.beginShopCharge(\'' + mod.id + '\',\'' + list.id + '\',\'' + it.id + '\')">记账</button>'
+              : '') +
+            '<button type="button" class="btn-ghost wk-clear" onclick="App.delShopItem(\'' + mod.id + '\',\'' + list.id + '\',\'' + it.id + '\')">删</button>' +
+            '</div></div>';
+        }).join('') || '<p class="muted wk-view-empty">清单还是空的</p>';
+
+        var chargeDraft = state._shopCharge;
+        var chargePanel = '';
+        if (chargeDraft && chargeDraft.modId === mod.id && chargeDraft.listId === list.id && !chargeDraft.itemId) {
+          chargePanel = '<div class="study-sync-picker shop-charge-picker">' +
+            '<span class="study-sync-picker-label">批量记入支出</span>' +
+            '<input id="shop-charge-amt" class="input" type="number" step="0.01" min="0" value="' + esc(String(chargeDraft.amount || '')) + '" placeholder="金额">' +
+            '<select id="shop-charge-acct" class="input">' + acctOpts + '</select>' +
+            '<button type="button" class="btn" onclick="App.confirmShopCharge()">确认</button>' +
+            '<button type="button" class="btn-ghost" onclick="App.cancelShopCharge()">取消</button></div>';
+        } else if (chargeDraft && chargeDraft.modId === mod.id && chargeDraft.listId === list.id && chargeDraft.itemId) {
+          chargePanel = '<div class="study-sync-picker shop-charge-picker">' +
+            '<span class="study-sync-picker-label">记入支出</span>' +
+            '<input id="shop-charge-amt" class="input" type="number" step="0.01" min="0" value="' + esc(String(chargeDraft.amount || '')) + '" placeholder="金额">' +
+            '<select id="shop-charge-acct" class="input">' + acctOpts + '</select>' +
+            '<button type="button" class="btn" onclick="App.confirmShopCharge()">确认</button>' +
+            '<button type="button" class="btn-ghost" onclick="App.cancelShopCharge()">取消</button></div>';
+        }
+
+        return '<div class="shop-list card' + (listOpen ? ' is-open' : '') + '">' +
+          '<div class="shop-list-head">' +
+          '<button type="button" class="btn-ghost" onclick="App.toggleShopList(\'' + list.id + '\')">' + (listOpen ? '▾' : '▸') + '</button>' +
+          '<div class="shop-list-title"><strong>' + esc(list.title) + '</strong>' +
+          '<span class="muted"> ' + items.length + ' 项 · 待购 ' + items.filter(function (i) { return !i.bought; }).length + '</span></div>' +
+          '<button type="button" class="btn-ghost wk-clear" onclick="App.delShopList(\'' + mod.id + '\',\'' + list.id + '\')">删清单</button></div>' +
+          '<div class="shop-list-body"' + (listOpen ? '' : ' hidden') + '>' +
+          '<div class="shop-item-list">' + itemsHtml + '</div>' +
+          '<div class="form-row shop-item-add">' +
+          '<input id="si-name-' + list.id + '" class="input" placeholder="物品名">' +
+          '<input id="si-qty-' + list.id + '" class="input" placeholder="数量" style="max-width:72px">' +
+          '<input id="si-price-' + list.id + '" class="input" type="number" step="0.01" min="0" placeholder="预估¥" style="max-width:88px">' +
+          '<button type="button" class="btn" onclick="App.addShopItem(\'' + mod.id + '\',\'' + list.id + '\')">添加</button></div>' +
+          (pendingMoney.length
+            ? '<div class="form-row"><button type="button" class="btn" onclick="App.beginShopCharge(\'' + mod.id + '\',\'' + list.id + '\',\'\')">把已购未记账（' + pendingMoney.length + '）记入支出</button></div>'
+            : '') +
+          chargePanel +
+          '</div></div>';
+      }).join('') || '<p class="muted wk-view-empty">还没有清单，在下方添加</p>';
+
+      return '<section class="card shop-module' + (modOpen ? ' is-open' : '') + '">' +
+        '<div class="work-project-head" onclick="App.toggleShopModule(\'' + mod.id + '\')" role="button" tabindex="0">' +
+        '<span class="study-chevron" aria-hidden="true"></span>' +
+        '<div class="work-project-title">' +
+        '<h3>' + esc(mod.title) + '</h3>' +
+        (mod.note ? '<p class="muted">' + esc(mod.note) + '</p>' : '') +
+        '<p class="muted">清单 ' + lists.length + ' · 待购 ' + openCount + ' · 已购 ' + boughtCount +
+        (modOpen ? '' : ' · 点击展开') + '</p></div>' +
+        '<button type="button" class="btn-ghost wk-clear" onclick="event.stopPropagation();App.delShopModule(\'' + mod.id + '\')">删模块</button></div>' +
+        '<div class="work-project-body"' + (modOpen ? '' : ' hidden') + '>' +
+        listsHtml +
+        '<div class="form-row" style="margin-top:10px">' +
+        '<input id="sl-title-' + mod.id + '" class="input" placeholder="新清单名称，如周末采购">' +
+        '<button type="button" class="btn" onclick="App.addShopList(\'' + mod.id + '\')">添加清单</button></div>' +
+        '</div></section>';
+    }).join('') || '<p class="muted wk-view-empty">还没有购物模块，先创建一个吧</p>';
+
+    document.getElementById('page').innerHTML =
+      '<div class="shop-wrap"><h2>购物清单</h2>' +
+      '<p class="muted month-hint">自定义模块（如超市 / 网购），模块下建清单，勾选已购后可记入支出（分类：购物）。</p>' +
+      '<section class="card">' +
+      '<h3>添加模块</h3>' +
+      '<div class="form-row">' +
+      '<input id="sm-title" class="input" placeholder="模块名，如超市">' +
+      '<input id="sm-note" class="input" placeholder="备注（可选）">' +
+      '<button type="button" class="btn" onclick="App.addShopModule()">添加</button></div></section>' +
+      '<div class="shop-module-list">' + modHtml + '</div></div>';
+  }
+
   function renderSettings() {
     var cfg = loadSupabaseConfig();
     var meta = loadSyncMeta();
@@ -4620,6 +4821,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     else if (mod === 'hobby') renderHobby();
     else if (mod === 'study') renderStudy();
     else if (mod === 'work') renderWork();
+    else if (mod === 'shopping') renderShopping();
     else if (mod === 'lang') renderLang();
     else if (mod === 'xuegong') renderXuegong();
     else if (mod === 'settings') renderSettings();
@@ -5562,6 +5764,166 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       state._workTab = t === 'prep' ? 'prep' : 'items';
       save(); render();
     },
+    toggleWorkDoneFold: function () {
+      state._workShowDone = !state._workShowDone;
+      save(); render();
+    },
+    toggleXgDoneFold: function () {
+      state._xgShowDone = !state._xgShowDone;
+      save(); render();
+    },
+    addShopModule: function () {
+      ensureShopping(state);
+      var title = (document.getElementById('sm-title').value || '').trim();
+      if (!title) { flash('请填写模块名'); return; }
+      var id = uid();
+      state.shopping.modules.push({
+        id: id,
+        title: title,
+        note: (document.getElementById('sm-note').value || '').trim(),
+        lists: []
+      });
+      if (!state._shopOpen) state._shopOpen = {};
+      state._shopOpen[id] = true;
+      save(); render(); flash('模块已添加 ✓');
+    },
+    delShopModule: function (modId) {
+      ensureShopping(state);
+      var mod = findShopModule(modId);
+      if (mod) {
+        (mod.lists || []).forEach(function (list) {
+          (list.items || []).forEach(function (it) {
+            if (it.moneyId) removeMoneyById(it.moneyId);
+          });
+        });
+      }
+      state.shopping.modules = state.shopping.modules.filter(function (m) { return m.id !== modId; });
+      save(); render();
+    },
+    toggleShopModule: function (modId) {
+      if (!state._shopOpen) state._shopOpen = {};
+      state._shopOpen[modId] = !state._shopOpen[modId];
+      save(); render();
+    },
+    addShopList: function (modId) {
+      var mod = findShopModule(modId);
+      if (!mod) return;
+      var title = ((document.getElementById('sl-title-' + modId) || {}).value || '').trim();
+      if (!title) { flash('请填写清单名'); return; }
+      var id = uid();
+      mod.lists.push({ id: id, title: title, note: '', items: [] });
+      if (!state._shopListOpen) state._shopListOpen = {};
+      state._shopListOpen[id] = true;
+      if (!state._shopOpen) state._shopOpen = {};
+      state._shopOpen[modId] = true;
+      save(); render(); flash('清单已添加 ✓');
+    },
+    delShopList: function (modId, listId) {
+      var mod = findShopModule(modId);
+      if (!mod) return;
+      var list = (mod.lists || []).find(function (l) { return l.id === listId; });
+      if (list) {
+        (list.items || []).forEach(function (it) {
+          if (it.moneyId) removeMoneyById(it.moneyId);
+        });
+      }
+      mod.lists = (mod.lists || []).filter(function (l) { return l.id !== listId; });
+      save(); render();
+    },
+    toggleShopList: function (listId) {
+      if (!state._shopListOpen) state._shopListOpen = {};
+      var cur = state._shopListOpen[listId];
+      state._shopListOpen[listId] = cur === false;
+      save(); render();
+    },
+    addShopItem: function (modId, listId) {
+      var list = findShopList(modId, listId);
+      if (!list) return;
+      var name = ((document.getElementById('si-name-' + listId) || {}).value || '').trim();
+      if (!name) { flash('请填写物品名'); return; }
+      var qty = ((document.getElementById('si-qty-' + listId) || {}).value || '').trim();
+      var price = parseFloat((document.getElementById('si-price-' + listId) || {}).value) || 0;
+      list.items.push({
+        id: uid(), name: name, qty: qty, unit: '', price: price, bought: false, moneyId: '', note: ''
+      });
+      if (!state._shopListOpen) state._shopListOpen = {};
+      state._shopListOpen[listId] = true;
+      save(); render();
+    },
+    delShopItem: function (modId, listId, itemId) {
+      var list = findShopList(modId, listId);
+      if (!list) return;
+      var item = (list.items || []).find(function (i) { return i.id === itemId; });
+      if (item && item.moneyId) removeMoneyById(item.moneyId);
+      list.items = (list.items || []).filter(function (i) { return i.id !== itemId; });
+      save(); render();
+    },
+    toggleShopItem: function (modId, listId, itemId) {
+      var item = findShopItem(modId, listId, itemId);
+      if (!item) return;
+      item.bought = !item.bought;
+      save(); render();
+    },
+    beginShopCharge: function (modId, listId, itemId) {
+      ensureShopping(state);
+      var amount = 0;
+      if (itemId) {
+        var item = findShopItem(modId, listId, itemId);
+        if (!item || !item.bought || item.moneyId) { flash('该项无需记账'); return; }
+        amount = item.price || 0;
+      } else {
+        var list = findShopList(modId, listId);
+        if (!list) return;
+        (list.items || []).forEach(function (it) {
+          if (it.bought && !it.moneyId) amount += (+it.price || 0);
+        });
+      }
+      state._shopCharge = { modId: modId, listId: listId, itemId: itemId || '', amount: amount };
+      if (!state._shopOpen) state._shopOpen = {};
+      state._shopOpen[modId] = true;
+      if (!state._shopListOpen) state._shopListOpen = {};
+      state._shopListOpen[listId] = true;
+      save(); render();
+    },
+    cancelShopCharge: function () {
+      state._shopCharge = null;
+      save(); render();
+    },
+    confirmShopCharge: function () {
+      var draft = state._shopCharge;
+      if (!draft) return;
+      var amtEl = document.getElementById('shop-charge-amt');
+      var acctEl = document.getElementById('shop-charge-acct');
+      var amount = parseFloat(amtEl && amtEl.value) || 0;
+      var account = (acctEl && acctEl.value) || 'wechat';
+      if (!amount) { flash('请填写金额'); return; }
+      var mod = findShopModule(draft.modId);
+      var list = findShopList(draft.modId, draft.listId);
+      if (!mod || !list) { state._shopCharge = null; save(); render(); return; }
+      var noteBase = '购物 · ' + mod.title + ' · ' + list.title;
+      if (draft.itemId) {
+        var one = findShopItem(draft.modId, draft.listId, draft.itemId);
+        if (!one || one.moneyId) { flash('该项已记账或不存在'); return; }
+        one.moneyId = addMoneyRecord({
+          io: 'out', amount: amount, account: account, cat: '购物',
+          note: noteBase + ' · ' + one.name, fromShopping: true
+        });
+        one.bought = true;
+        if (!one.price) one.price = amount;
+      } else {
+        var targets = (list.items || []).filter(function (it) { return it.bought && !it.moneyId; });
+        if (!targets.length) { flash('没有待记账项'); return; }
+        var mid = addMoneyRecord({
+          io: 'out', amount: amount, account: account, cat: '购物',
+          note: noteBase + ' · ' + targets.map(function (t) { return t.name; }).join('、'),
+          fromShopping: true
+        });
+        targets.forEach(function (it) { it.moneyId = mid; });
+      }
+      state._shopCharge = null;
+      save(); render();
+      flash('已记入支出 ✓');
+    },
     addWorkProject: function () {
       ensureWork(state);
       var title = (document.getElementById('wp-title').value || '').trim();
@@ -6456,6 +6818,9 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       delSopStep: '这个步骤',
       delSopTask: '这个小任务',
       delTourism: '这条旅游系项目',
+      delShopModule: '这个购物模块',
+      delShopList: '这份购物清单',
+      delShopItem: '这个购物项',
       removeDayType: '这个日程类型',
       removeWeekGoal: '这条周目标',
       clearWeekField: '这段周总结'
