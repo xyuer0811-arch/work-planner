@@ -2873,6 +2873,33 @@
       font-weight: 700;
       color: #5a6e66;
     }
+    .plan-sync-actions {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .plan-sync-actions .btn-ghost {
+      font-size: 12px;
+      padding: 2px 8px;
+    }
+    .work-sub-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-bottom: 6px;
+    }
+    .plan-sync-picker {
+      margin-top: 6px;
+    }
+    .sop-item-actions .plan-sync-actions,
+    .sop-step-actions .plan-sync-actions,
+    .sop-task-actions + .plan-sync-actions,
+    .tour-actions .plan-sync-actions {
+      display: flex;
+      margin-top: 4px;
+    }
+
     .study-sync-picker .input {
       width: auto;
       min-width: 120px;
@@ -8003,6 +8030,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       if (typeof t.urgent !== 'boolean') t.urgent = false;
       if (typeof t.done !== 'boolean') t.done = false;
     });
+    s.schedule.classes.forEach(normalizeRoutine);
   }
 
   function ensureMoney(s) {
@@ -8553,6 +8581,186 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     task.eventId = eid;
     task.syncType = sync;
     return eid;
+  }
+
+  function normalizeRoutine(c) {
+    if (!c || typeof c !== 'object') return;
+    if (c.mode !== 'daily' && c.mode !== 'weekdays' && c.mode !== 'weekly') c.mode = 'weekly';
+    c.weekday = Math.max(0, Math.min(6, +c.weekday || 0));
+    if (c.rangeStart == null) c.rangeStart = '';
+    if (c.rangeEnd == null) c.rangeEnd = '';
+    if (c.kind == null || c.kind === '') c.kind = '课程';
+    if (c.place == null) c.place = '';
+    if (c.start == null) c.start = '';
+    if (c.end == null) c.end = '';
+  }
+
+  function routineModeLabel(mode) {
+    if (mode === 'daily') return '每天';
+    if (mode === 'weekdays') return '工作日';
+    return '每周';
+  }
+
+  function routineOccursOnDate(c, dateStr) {
+    if (!c || !dateStr) return false;
+    normalizeRoutine(c);
+    if (c.rangeStart && dateStr < c.rangeStart) return false;
+    if (c.rangeEnd && dateStr > c.rangeEnd) return false;
+    var p = dateStr.split('-');
+    var wd = new Date(+p[0], +p[1] - 1, +p[2]).getDay();
+    if (c.mode === 'daily') return true;
+    if (c.mode === 'weekdays') return wd >= 1 && wd <= 5;
+    return (+c.weekday) === wd;
+  }
+
+  function pushPlanFromModule(opts) {
+    ensureSchedule(state);
+    var eid = uid();
+    state.schedule.events.push({
+      id: eid,
+      title: opts.title,
+      date: opts.date || todayStr(),
+      time: opts.time || '09:00',
+      endTime: opts.endTime || '',
+      type: 'event',
+      kind: opts.kind || '其他',
+      urgency: 'normal',
+      note: opts.note || '',
+      _fromWork: opts.fromWork || '',
+      _fromXuegong: opts.fromXuegong || ''
+    });
+    return eid;
+  }
+
+  function resolvePlanSyncSource(key) {
+    var parts = String(key || '').split(':');
+    if (parts[0] === 'work') {
+      ensureWork(state);
+      if (parts[1] === 'proj') {
+        var proj = (state.work.projects || []).find(function (x) { return x.id === parts[2]; });
+        if (!proj) return null;
+        return { title: proj.title, kind: '工作', note: '来自工作 · 项目', fromWork: key };
+      }
+      if (parts[1] === 'task') {
+        var wp = (state.work.projects || []).find(function (x) { return x.id === parts[2]; });
+        if (!wp) return null;
+        var task = (wp.tasks || []).find(function (x) { return x.id === parts[3]; });
+        if (!task) return null;
+        return {
+          title: task.title,
+          kind: '工作',
+          note: '来自工作 · ' + wp.title,
+          date: task.ddl || '',
+          fromWork: key
+        };
+      }
+      if (parts[1] === 'sub') {
+        var wp2 = (state.work.projects || []).find(function (x) { return x.id === parts[2]; });
+        if (!wp2) return null;
+        var task2 = (wp2.tasks || []).find(function (x) { return x.id === parts[3]; });
+        if (!task2) return null;
+        var sub = (task2.subs || []).find(function (x) { return x.id === parts[4]; });
+        if (!sub) return null;
+        return {
+          title: sub.title,
+          kind: '工作',
+          note: '来自工作 · ' + wp2.title + ' · ' + task2.title,
+          fromWork: key
+        };
+      }
+      if (parts[1] === 'tutor') {
+        var tp = (state.work.tutoring || []).find(function (x) { return x.id === parts[2]; });
+        if (!tp) return null;
+        return { title: tp.title, kind: '工作', note: '来自家教 · 项目', fromWork: key };
+      }
+      if (parts[1] === 'lesson') {
+        var tp2 = (state.work.tutoring || []).find(function (x) { return x.id === parts[2]; });
+        if (!tp2) return null;
+        var lesson = (tp2.lessons || []).find(function (x) { return x.id === parts[3]; });
+        if (!lesson) return null;
+        var lessonTitle = tp2.title + (lesson.prep ? ' · ' + String(lesson.prep).slice(0, 24) : ' · 课时');
+        return {
+          title: lessonTitle,
+          kind: '工作',
+          note: '来自家教课时',
+          date: lesson.date || '',
+          time: lesson.time || '',
+          endTime: lesson.endTime || '',
+          fromWork: key
+        };
+      }
+    }
+    if (parts[0] === 'xg') {
+      ensureXuegong(state);
+      if (parts[1] === 'sop') {
+        var sop = findSop(parts[2], parts[3]);
+        if (!sop) return null;
+        return { title: sop.title, kind: '学工', note: '来自学工 · SOP 项目', date: sop.date || '', fromXuegong: key };
+      }
+      if (parts[1] === 'step') {
+        var sop2 = findSop(parts[2], parts[3]);
+        if (!sop2) return null;
+        var step = findSopStep(sop2, parts[4]);
+        if (!step) return null;
+        return {
+          title: step.title || '步骤',
+          kind: '学工',
+          note: '来自学工 · ' + sop2.title,
+          fromXuegong: key
+        };
+      }
+      if (parts[1] === 'task') {
+        var sop3 = findSop(parts[2], parts[3]);
+        if (!sop3) return null;
+        var step2 = findSopStep(sop3, parts[4]);
+        if (!step2) return null;
+        var st = findSopTask(step2, parts[5]);
+        if (!st) return null;
+        return {
+          title: st.text || '小任务',
+          kind: '学工',
+          note: '来自学工 · ' + sop3.title + ' · ' + (step2.title || '步骤'),
+          fromXuegong: key
+        };
+      }
+      if (parts[1] === 'tour') {
+        var row = ((state.xuegong.tourism && state.xuegong.tourism.rows) || []).find(function (x) { return x.id === parts[2]; });
+        if (!row) return null;
+        return {
+          title: row.topic || '旅游系项目',
+          kind: '学工',
+          note: '来自旅游系' + (row.slot ? ' · ' + row.slot : ''),
+          date: row.date || '',
+          fromXuegong: key
+        };
+      }
+    }
+    return null;
+  }
+
+  function planSyncActionsHtml(key) {
+    var draft = state._planSync;
+    var open = draft && draft.key === key;
+    var html = '<span class="plan-sync-actions">' +
+      '<button type="button" class="btn-ghost" onclick="event.stopPropagation();App.beginPlanSync(\'week\',\'' + key + '\')">→周计划</button>' +
+      '<button type="button" class="btn-ghost" onclick="event.stopPropagation();App.beginPlanSync(\'day\',\'' + key + '\')">→日计划</button>' +
+      '</span>';
+    if (!open) return html;
+    var isWeek = draft.target === 'week';
+    html += '<div class="study-sync-picker plan-sync-picker" onclick="event.stopPropagation()">' +
+      '<span class="study-sync-picker-label">' + (isWeek ? '加入周计划' : '加入日计划') + '</span>' +
+      '<input id="plan-sync-date" class="input" type="date" value="' + esc(draft.date || todayStr()) + '">' +
+      (isWeek
+        ? '<select id="plan-sync-slot" class="input">' +
+          '<option value="am"' + (draft.slot === 'am' ? ' selected' : '') + '>上午</option>' +
+          '<option value="noon"' + (draft.slot === 'noon' ? ' selected' : '') + '>中午</option>' +
+          '<option value="pm"' + (draft.slot === 'pm' ? ' selected' : '') + '>晚上</option></select>'
+        : '<input id="plan-sync-time" class="input" type="time" value="' + esc(draft.time || '09:00') + '" title="开始">' +
+          '<span class="muted">–</span>' +
+          '<input id="plan-sync-end" class="input" type="time" value="' + esc(draft.endTime || '10:00') + '" title="结束">') +
+      '<button type="button" class="btn" onclick="App.confirmPlanSync()">确认</button>' +
+      '<button type="button" class="btn-ghost" onclick="App.cancelPlanSync()">取消</button></div>';
+    return html;
   }
 
   function studyFmtSize(n) {
@@ -9418,7 +9626,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       { id: 'day', label: '日计划' }
     ];
     var moreTabs = [
-      { id: 'classes', label: '循环课表' },
+      { id: 'classes', label: '循环日常' },
       { id: 'todos', label: '待办' }
     ];
     var pinHtml = pinTabs.map(function (t) {
@@ -9629,6 +9837,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     }
     if (!seen['课程']) out.unshift({ name: '课程', color: '#A8C5B8' });
     if (!seen['运动']) out.push({ name: '运动', color: '#7EB8A8' });
+    if (!seen['学工']) out.push({ name: '学工', color: '#98A8B8' });
     return out;
   }
 
@@ -9717,12 +9926,13 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         var dObj = new Date(ds.split('-')[0], +ds.split('-')[1] - 1, +ds.split('-')[2]);
         var wd = dObj.getDay();
         var classItems = state.schedule.classes.filter(function (c) {
-          return c.weekday === wd && slotFromTime(c.start) === slot;
+          return routineOccursOnDate(c, ds) && slotFromTime(c.start) === slot;
         }).map(function (c) {
-          var tip = (c.start || '') + (c.end ? '-' + c.end : '') + (c.place ? ' · ' + c.place : '');
-          var col = typeColor('课程');
+          var tip = routineModeLabel(c.mode) + ' · ' + (c.start || '') + (c.end ? '-' + c.end : '') + (c.place ? ' · ' + c.place : '');
+          var kind = c.kind || '课程';
+          var col = typeColor(kind);
           return '<div class="wk-chip class" title="' + esc(tip) + '" style="background:' + softBg(col) + ';color:' + col + ';border:1px dashed ' + col + '">' +
-            '<span class="wk-k">课程</span> ' + esc(c.title) +
+            '<span class="wk-k">' + esc(kind) + '</span> ' + esc(c.title) +
             (c.start ? '<span class="wk-time">' + esc(c.start) + '</span>' : '') + '</div>';
         }).join('');
         var planItems = state.schedule.events.filter(function (e) {
@@ -9926,7 +10136,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     var dayEvents = state.schedule.events.filter(function (e) {
       return e.date === ds && e.type !== 'ddl' && e.type !== 'special';
     });
-    var dayClasses = state.schedule.classes.filter(function (c) { return c.weekday === wd; });
+    var dayClasses = state.schedule.classes.filter(function (c) { return routineOccursOnDate(c, ds); });
 
     var classAsCards = dayClasses.map(function (c) {
       return {
@@ -9934,9 +10144,13 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         title: c.title,
         time: c.start || '',
         endTime: c.end || '',
-        kind: '课程',
+        kind: c.kind || '课程',
         urgency: 'normal',
-        note: c.place ? ('地点：' + c.place) : '',
+        note: [
+          routineModeLabel(c.mode),
+          c.place ? ('地点：' + c.place) : '',
+          (c.rangeStart || c.rangeEnd) ? ('周期 ' + (c.rangeStart || '…') + '～' + (c.rangeEnd || '…')) : ''
+        ].filter(Boolean).join(' · '),
         source: 'class'
       };
     });
@@ -9949,7 +10163,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         id: 'c-' + c.id,
         source: 'class',
         title: c.title,
-        kind: '课程',
+        kind: c.kind || '课程',
         urgency: 'normal',
         start: span.start,
         end: span.end,
@@ -10022,7 +10236,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<span class="muted">周' + WEEKDAYS[wd] + (isToday ? ' · 今天' : '') + ' · 按开始–结束时间占位</span></div>' +
       '<button type="button" class="btn-ghost" onclick="App.shiftDay(1)">明天 ›</button></div>' +
       (!isToday ? '<div class="day-today-bar"><button type="button" class="btn" onclick="App.goSchedToday()">一键回到今天</button></div>' : '') +
-      '<p class="muted week-tip">循环课表中的课程会按上课时段出现在时间轴；未填结束时间时默认占 1 小时</p>' +
+      '<p class="muted week-tip">循环日常会按设定的循环方式与时段出现在时间轴；未填结束时间时默认占 1 小时</p>' +
 
       '<div class="card tl-board">' +
       '<h3 class="tl-title">当日时间轴 <span class="muted">6:00–24:00</span></h3>' +
@@ -10071,34 +10285,57 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
 
   function renderSchedClasses() {
     ensureSchedule(state);
+    var typeOpts = normalizeDayTypes(state.schedule.dayTypes).map(function (t) {
+      return '<option value="' + esc(t.name) + '">' + esc(t.name) + '</option>';
+    }).join('');
     var list = state.schedule.classes.slice().sort(function (a, b) {
-      return (a.weekday - b.weekday) || String(a.start || '').localeCompare(String(b.start || ''));
+      return String(a.rangeStart || '').localeCompare(String(b.rangeStart || '')) ||
+        (a.weekday - b.weekday) || String(a.start || '').localeCompare(String(b.start || ''));
     }).map(function (c) {
+      normalizeRoutine(c);
+      var when = routineModeLabel(c.mode);
+      if (c.mode === 'weekly') when += '周' + WEEKDAYS[c.weekday];
+      var range = (c.rangeStart || c.rangeEnd)
+        ? ((c.rangeStart || '…') + '～' + (c.rangeEnd || '…'))
+        : '长期';
       return '<div class="class-item">' +
-        '<span class="pill ok">周' + WEEKDAYS[c.weekday] + '</span> ' +
+        '<span class="pill ok">' + esc(when) + '</span> ' +
         '<strong>' + esc(c.title) + '</strong> ' +
-        esc(c.start) + '-' + esc(c.end) +
+        '<span class="muted">' + esc(c.kind || '课程') + '</span> ' +
+        esc(c.start) + (c.end ? '-' + esc(c.end) : '') +
         (c.place ? ' · ' + esc(c.place) : '') +
-        ' <span class="muted">→ ' + SLOT_LABELS[slotFromTime(c.start)] + '</span>' +
+        ' <span class="muted">· ' + esc(range) + '</span>' +
+        (c.start ? ' <span class="muted">→ ' + SLOT_LABELS[slotFromTime(c.start)] + '</span>' : '') +
         ' <button type="button" class="btn-ghost" onclick="App.delClass(\'' + c.id + '\')">移除</button></div>';
-    }).join('') || '<p class="empty scrap-empty">还没有课程，添加后会显示在周计划与日计划中</p>';
+    }).join('') || '<p class="empty scrap-empty">还没有循环日常，添加后会显示在周计划与日计划中</p>';
 
     return '<div class="classes-wrap">' +
       '<section class="card">' +
-      '<h3>添加循环课表</h3>' +
-      '<p class="muted month-hint">在此维护课程；周计划 / 日计划表格会自动展示，无需重复填写。</p>' +
+      '<h3>添加循环日常</h3>' +
+      '<p class="muted month-hint">设置循环方式与起止日期后，周计划 / 日计划会在有效期内自动展示，无需重复填写。</p>' +
       '<div class="form-row">' +
-      '<input id="cls-title" class="input" placeholder="课程名">' +
-      '<select id="cls-wd" class="input">' +
-      WEEKDAYS.map(function (w, i) { return '<option value="' + i + '">周' + w + '</option>'; }).join('') +
-      '</select>' +
-      '<input id="cls-start" class="input" placeholder="开始 08:00">' +
-      '<input id="cls-end" class="input" placeholder="结束 09:40">' +
-      '<input id="cls-place" class="input" placeholder="地点">' +
-      '<button type="button" class="btn" onclick="App.addClass()">添加课程</button></div>' +
-      renderImportBlock('cls-import', 'title,weekday,start,end,place  （weekday: 0日～6六，或 一/二/…）') +
+      '<input id="cls-title" class="input" placeholder="名称，如早读 / 跑步">' +
+      '<select id="cls-mode" class="input" title="循环方式">' +
+      '<option value="weekly">每周（指定星期）</option>' +
+      '<option value="weekdays">工作日（周一至五）</option>' +
+      '<option value="daily">每天</option></select>' +
+      '<select id="cls-wd" class="input" title="星期（仅「每周」生效）">' +
+      WEEKDAYS.map(function (w, i) { return '<option value="' + i + '"' + (i === 1 ? ' selected' : '') + '>周' + w + '</option>'; }).join('') +
+      '</select></div>' +
+      '<div class="form-row">' +
+      '<input id="cls-start" class="input" type="time" value="08:00" title="开始时间">' +
+      '<input id="cls-end" class="input" type="time" value="09:00" title="结束时间">' +
+      '<input id="cls-from" class="input" type="date" title="循环开始日期" placeholder="开始日期">' +
+      '<input id="cls-to" class="input" type="date" title="循环结束日期" placeholder="结束日期">' +
+      '</div>' +
+      '<div class="form-row">' +
+      '<select id="cls-kind" class="input">' + typeOpts + '</select>' +
+      '<input id="cls-place" class="input" placeholder="地点 / 备注（可选）">' +
+      '<button type="button" class="btn" onclick="App.addClass()">添加</button></div>' +
+      '<p class="muted">循环起止日期可留空表示长期有效；「每周」时请选择星期。</p>' +
+      renderImportBlock('cls-import', 'title,weekday,start,end,place[,mode,from,to,kind]  （weekday: 0日～6六；mode: weekly/weekdays/daily）') +
       '</section>' +
-      '<section class="card"><h3>已添加课程</h3><div class="class-list">' + list + '</div></section></div>';
+      '<section class="card"><h3>已添加日常</h3><div class="class-list">' + list + '</div></section></div>';
   }
 
   function renderSchedTodos() {
@@ -10163,13 +10400,29 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         if (mapCN[raw] != null) wd = mapCN[raw];
         else wd = WEEKDAYS.indexOf(raw);
       }
-      if (wd < 0 || wd > 6) return;
-      var sig = [p[0], wd, p[2], p[3], p[4] || ''].join('|');
+      if (wd < 0 || wd > 6) wd = 1;
+      var mode = (p[5] || 'weekly').toLowerCase();
+      if (mode !== 'daily' && mode !== 'weekdays' && mode !== 'weekly') mode = 'weekly';
+      var item = {
+        id: uid(),
+        title: p[0],
+        weekday: wd,
+        start: p[2],
+        end: p[3],
+        place: p[4] || '',
+        mode: mode,
+        rangeStart: p[6] || '',
+        rangeEnd: p[7] || '',
+        kind: p[8] || '课程'
+      };
+      normalizeRoutine(item);
+      var sig = [item.title, item.mode, item.weekday, item.start, item.end, item.place, item.rangeStart, item.rangeEnd].join('|');
       var dup = state.schedule.classes.some(function (c) {
-        return [c.title, c.weekday, c.start, c.end, c.place || ''].join('|') === sig;
+        normalizeRoutine(c);
+        return [c.title, c.mode, c.weekday, c.start, c.end, c.place || '', c.rangeStart || '', c.rangeEnd || ''].join('|') === sig;
       });
       if (dup) return;
-      state.schedule.classes.push({ id: uid(), title: p[0], weekday: wd, start: p[2], end: p[3], place: p[4] || '' });
+      state.schedule.classes.push(item);
       n++;
     });
     return n;
@@ -11058,6 +11311,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
           '<button type="button" class="btn-ghost wk-clear" onclick="App.delTutorLesson(\'' + proj.id + '\',\'' + L.id + '\')">清除</button></div>' +
           (L.prep ? '<div class="tutor-block"><span class="muted">备课</span><p>' + esc(L.prep) + '</p></div>' : '') +
           (L.feedback ? '<div class="tutor-block"><span class="muted">反馈</span><p>' + esc(L.feedback) + '</p></div>' : '') +
+          planSyncActionsHtml('work:lesson:' + proj.id + ':' + L.id) +
           '</article>';
       }).join('') || '<p class="muted wk-view-empty">还没有课时</p>';
 
@@ -11069,7 +11323,8 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         (proj.note ? '<p class="muted">' + esc(proj.note) + '</p>' : '') +
         '<p class="muted study-progress">课时 ' + lessons.length +
         (incomeSum ? ' · 累计收入 ' + incomeSum.toFixed(2) : '') +
-        (isOpen ? '' : ' · 点击展开') + '</p></div>' +
+        (isOpen ? '' : ' · 点击展开') + '</p>' +
+        '<div onclick="event.stopPropagation()">' + planSyncActionsHtml('work:tutor:' + proj.id) + '</div></div>' +
         '<button type="button" class="btn-ghost wk-clear" onclick="event.stopPropagation();App.delTutorProject(\'' + proj.id + '\')">清除项目</button></div>' +
         '<div class="work-project-body"' + (isOpen ? '' : ' hidden') + '>' +
         '<div class="tutor-lesson-compose">' +
@@ -11116,13 +11371,18 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         var ddlSoon = t.ddl && daysBetween(todayStr(), t.ddl) <= 3 && daysBetween(todayStr(), t.ddl) >= 0;
         var ddlOver = t.ddl && t.ddl < todayStr() && !t.done;
         var subList = (t.subs || []).map(function (s) {
-          return '<label class="work-sub' + (s.done ? ' is-done' : '') + '">' +
+          var subKey = 'work:sub:' + p.id + ':' + t.id + ':' + s.id;
+          return '<div class="work-sub-row">' +
+            '<label class="work-sub' + (s.done ? ' is-done' : '') + '">' +
             '<input type="checkbox"' + (s.done ? ' checked' : '') +
             ' onchange="App.toggleWorkSub(\'' + p.id + '\',\'' + t.id + '\',\'' + s.id + '\')">' +
             '<span>' + esc(s.title) + '</span>' +
-            '<button type="button" class="work-sub-del" title="清除" onclick="event.preventDefault();App.delWorkSub(\'' + p.id + '\',\'' + t.id + '\',\'' + s.id + '\')">×</button></label>';
+            '<button type="button" class="work-sub-del" title="清除" onclick="event.preventDefault();App.delWorkSub(\'' + p.id + '\',\'' + t.id + '\',\'' + s.id + '\')">×</button></label>' +
+            planSyncActionsHtml(subKey) +
+            '</div>';
         }).join('');
 
+        var taskKey = 'work:task:' + p.id + ':' + t.id;
         return '<article class="work-task' + (t.done ? ' is-done' : '') + (subsOpen ? ' is-subs-open' : '') + '">' +
           '<div class="work-task-head">' +
           '<input type="checkbox" class="work-task-check"' + (t.done ? ' checked' : '') +
@@ -11135,6 +11395,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
             : '') +
           '</div>' +
           (t.content ? '<p class="work-task-content">' + esc(t.content) + '</p>' : '') +
+          planSyncActionsHtml(taskKey) +
           '<button type="button" class="work-sub-toggle" onclick="App.toggleWorkTaskSubs(\'' + t.id + '\')">' +
           '子项' + (subStats.total ? ' ' + subStats.done + '/' + subStats.total : '') +
           (subsOpen ? ' ▴' : ' ▾') + '</button></div>' +
@@ -11147,6 +11408,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
           '<button type="button" class="btn btn-ghost work-sub-add-btn" onclick="App.addWorkSub(\'' + p.id + '\',\'' + t.id + '\')">+</button></div></div></article>';
       }).join('') || '<p class="muted wk-view-empty">还没有任务</p>';
 
+      var projKey = 'work:proj:' + p.id;
       return '<section class="card work-project' + (isOpen ? ' is-open' : '') + '">' +
         '<div class="work-project-head" onclick="App.toggleWorkProject(\'' + p.id + '\')" role="button" tabindex="0">' +
         '<span class="study-chevron" aria-hidden="true"></span>' +
@@ -11154,7 +11416,8 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         '<h3>' + esc(p.title) + '</h3>' +
         (p.note ? '<p class="muted">' + esc(p.note) + '</p>' : '') +
         '<p class="muted study-progress">任务 ' + taskDone + '/' + tasks.length +
-        (isOpen ? '' : ' · 点击展开') + '</p></div>' +
+        (isOpen ? '' : ' · 点击展开') + '</p>' +
+        '<div onclick="event.stopPropagation()">' + planSyncActionsHtml(projKey) + '</div></div>' +
         '<button type="button" class="btn-ghost wk-clear" onclick="event.stopPropagation();App.delWorkProject(\'' + p.id + '\')">清除项目</button></div>' +
         '<div class="work-project-body"' + (isOpen ? '' : ' hidden') + '>' +
         '<div class="work-task-compose">' +
@@ -11805,6 +12068,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
               (taskEditing ? '收起' : '编辑') + '</button>' +
               '<button type="button" class="btn btn-ghost" onclick="App.delSopTask(\'' + dept + '\',\'' + s.id + '\',\'' + step.id + '\',\'' + task.id + '\')">删</button>' +
               '</div>' +
+              planSyncActionsHtml('xg:task:' + dept + ':' + s.id + ':' + step.id + ':' + task.id) +
               taskEditPanel +
               '</div>';
           }).join('') || '<p class="empty muted">本步骤还没有小任务</p>';
@@ -11841,6 +12105,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
             '<button type="button" class="btn' + (editing ? '' : ' btn-ghost') + '" onclick="App.editSopStep(\'' + dept + '\',\'' + s.id + '\',\'' + step.id + '\')">' +
             (editing ? '收起编辑' : '编辑步骤') + '</button>' +
             '<button type="button" class="btn btn-ghost" onclick="App.delSopStep(\'' + dept + '\',\'' + s.id + '\',\'' + step.id + '\')">删步骤</button>' +
+            planSyncActionsHtml('xg:step:' + dept + ':' + s.id + ':' + step.id) +
             '</div></div>' +
             renderProgressBar(sp.pct, '步骤进度 ' + sp.done + '/' + sp.total + '（' + sp.pct + '%）') +
             '<div class="sop-tasks">' + tasksHtml + '</div>' +
@@ -11862,6 +12127,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         '<div class="sop-item-actions">' +
         '<button type="button" class="btn btn-ghost" onclick="App.toggleSopOpen(\'' + s.id + '\')">' + (isOpen ? '收起' : '展开') + '</button>' +
         '<button type="button" class="btn btn-ghost" onclick="App.delSop(\'' + dept + '\',\'' + s.id + '\')">删项目</button>' +
+        planSyncActionsHtml('xg:sop:' + dept + ':' + s.id) +
         '</div></div>' +
         renderProgressBar(proj.pct, '项目进度 ' + proj.done + '/' + proj.total + '（' + proj.pct + '%）') +
         (isOpen ? '<div class="sop-steps-wrap">' + stepsHtml + '</div>' : '') +
@@ -11896,7 +12162,8 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         '<td>' + esc(r.feedback || '') + '</td>' +
         '<td class="tour-actions">' +
         '<button type="button" class="btn btn-ghost" onclick="App.editTourism(\'' + r.id + '\')">编辑</button> ' +
-        '<button type="button" class="btn btn-ghost wk-clear" onclick="App.delTourism(\'' + r.id + '\')">删除</button>' +
+        '<button type="button" class="btn btn-ghost wk-clear" onclick="App.delTourism(\'' + r.id + '\')">删除</button> ' +
+        planSyncActionsHtml('xg:tour:' + r.id) +
         '</td></tr>';
     }).join('');
     return '<section class="card tourism-card">' +
@@ -12293,19 +12560,104 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     },
     addClass: function () {
       var title = (document.getElementById('cls-title').value || '').trim();
-      if (!title) return;
-      state.schedule.classes.push({
-        id: uid(), title: title,
-        weekday: +document.getElementById('cls-wd').value,
-        start: document.getElementById('cls-start').value || '',
-        end: document.getElementById('cls-end').value || '',
-        place: document.getElementById('cls-place').value || ''
-      });
-      save(); render();
+      if (!title) { flash('请填写名称'); return; }
+      var mode = (document.getElementById('cls-mode') || {}).value || 'weekly';
+      var rangeStart = (document.getElementById('cls-from') || {}).value || '';
+      var rangeEnd = (document.getElementById('cls-to') || {}).value || '';
+      if (rangeStart && rangeEnd && rangeEnd < rangeStart) {
+        flash('循环结束日期不能早于开始日期');
+        return;
+      }
+      var item = {
+        id: uid(),
+        title: title,
+        mode: mode,
+        weekday: +((document.getElementById('cls-wd') || {}).value || 1),
+        start: (document.getElementById('cls-start') || {}).value || '',
+        end: (document.getElementById('cls-end') || {}).value || '',
+        place: (document.getElementById('cls-place') || {}).value || '',
+        kind: (document.getElementById('cls-kind') || {}).value || '课程',
+        rangeStart: rangeStart,
+        rangeEnd: rangeEnd
+      };
+      normalizeRoutine(item);
+      state.schedule.classes.push(item);
+      save(); render(); flash('已添加循环日常 ✓');
     },
     delClass: function (id) {
       state.schedule.classes = state.schedule.classes.filter(function (c) { return c.id !== id; });
       save(); render();
+    },
+    beginPlanSync: function (target, key) {
+      var src = resolvePlanSyncSource(key);
+      if (!src) { flash('未找到该项'); return; }
+      var parts = String(key).split(':');
+      if (parts[0] === 'work') {
+        if (!state._workOpen) state._workOpen = {};
+        if (parts[1] === 'proj' || parts[1] === 'task' || parts[1] === 'sub') state._workOpen[parts[2]] = true;
+        if (parts[1] === 'task' || parts[1] === 'sub') {
+          if (!state._workTaskOpen) state._workTaskOpen = {};
+          state._workTaskOpen[parts[3]] = true;
+        }
+        if (parts[1] === 'tutor' || parts[1] === 'lesson') {
+          if (!state._tutorOpen) state._tutorOpen = {};
+          state._tutorOpen[parts[2]] = true;
+        }
+      }
+      if (parts[0] === 'xg') {
+        if (!state._sopOpen) state._sopOpen = {};
+        if (parts[1] === 'sop' || parts[1] === 'step' || parts[1] === 'task') state._sopOpen[parts[3]] = true;
+      }
+      state._planSync = {
+        target: target === 'week' ? 'week' : 'day',
+        key: key,
+        date: src.date || todayStr(),
+        time: src.time || '09:00',
+        endTime: src.endTime || '10:00',
+        slot: src.time ? slotFromTime(src.time) : 'am'
+      };
+      save(); render();
+    },
+    cancelPlanSync: function () {
+      state._planSync = null;
+      save(); render();
+    },
+    confirmPlanSync: function () {
+      var draft = state._planSync;
+      if (!draft) return;
+      var src = resolvePlanSyncSource(draft.key);
+      if (!src) { state._planSync = null; save(); render(); return; }
+      var dateEl = document.getElementById('plan-sync-date');
+      var date = dateEl && dateEl.value ? dateEl.value : (draft.date || todayStr());
+      if (!date) { flash('请选择日期'); return; }
+      var time = '09:00';
+      var endTime = '';
+      if (draft.target === 'week') {
+        var slotEl = document.getElementById('plan-sync-slot');
+        var slot = slotEl && slotEl.value ? slotEl.value : (draft.slot || 'am');
+        time = slotDefaultTime(slot);
+        endTime = '';
+      } else {
+        var timeEl = document.getElementById('plan-sync-time');
+        var endEl = document.getElementById('plan-sync-end');
+        time = timeEl && timeEl.value ? timeEl.value : (draft.time || '09:00');
+        endTime = endEl && endEl.value ? endEl.value : (draft.endTime || '');
+        if (!time) { flash('请选择开始时间'); return; }
+        if (endTime && endTime <= time) { flash('结束时间需晚于开始时间'); return; }
+      }
+      pushPlanFromModule({
+        title: src.title,
+        date: date,
+        time: time,
+        endTime: endTime,
+        kind: src.kind,
+        note: src.note,
+        fromWork: src.fromWork || '',
+        fromXuegong: src.fromXuegong || ''
+      });
+      state._planSync = null;
+      save(); render();
+      flash(draft.target === 'week' ? '已加入周计划 ✓' : '已加入日计划 ✓');
     },
     addRecord: function () {
       var amt = parseFloat(document.getElementById('rec-amt').value) || 0;
@@ -13765,7 +14117,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       delEvent: '这个日程',
       delTodo: '这个待办',
       delWeekPlan: '这个周计划',
-      delClass: '这门课程安排',
+      delClass: '这条循环日常',
       delRecord: '这条记账',
       delExercise: '这条运动记录',
       delWeight: '这条体重记录',
