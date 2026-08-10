@@ -1032,8 +1032,9 @@
     }
     .tl-canvas {
       position: relative;
-      height: 1080px;
-      min-height: 1080px;
+      /* 9 格 × 2h（6–24），每格约 100px */
+      height: 900px;
+      min-height: 900px;
     }
     .tl-hours {
       position: absolute;
@@ -1300,7 +1301,7 @@
     }
     @media (max-width: 768px) {
       .urg-boards { grid-template-columns: 1fr; }
-      .tl-canvas { height: 900px; min-height: 900px; }
+      .tl-canvas { height: 810px; min-height: 810px; }
       .tl-track { left: 44px; }
       .sched-today-btn { margin-left: 0; width: 100%; }
       .sched-pin-row { gap: 6px; }
@@ -3037,7 +3038,7 @@
       .lang-goal-input {
         font-size: 16px !important;
       }
-      .tl-canvas { height: 900px; min-height: 900px; }
+      .tl-canvas { height: 810px; min-height: 810px; }
       .tl-track { left: 44px; }
       .sched-today-btn { margin-left: 0; width: 100%; }
       .sched-pin-row { gap: 6px; }

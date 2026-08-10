@@ -1935,6 +1935,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<div class="sched-pin-row">' + pinHtml + '</div>' +
       '<div class="tabs sched-more-tabs">' + moreHtml + '</div>' +
       '</div>' + body + '</div>';
+    if (tab === 'day') scrollDayTimelineToFocus();
   }
 
   function currentSchedMonth() {
@@ -2374,13 +2375,44 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     return sorted;
   }
 
+  function scrollDayTimelineToFocus() {
+    setTimeout(function () {
+      var board = document.querySelector('.tl-board');
+      var wrap = document.querySelector('.tl-scale-wrap');
+      var canvas = document.querySelector('.tl-canvas');
+      if (board) {
+        try {
+          board.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+        } catch (e) { /* ignore */ }
+      }
+      if (!wrap || !canvas) return;
+      var DAY_START = 6 * 60;
+      var DAY_END = 24 * 60;
+      var first = wrap.querySelector('.tl-block');
+      var topPx = 0;
+      if (first) {
+        var pct = parseFloat(String(first.style.top || '').replace('%', '')) || 0;
+        topPx = (pct / 100) * canvas.offsetHeight;
+      } else if ((state._schedDay || todayStr()) === todayStr()) {
+        var now = new Date();
+        var mins = now.getHours() * 60 + now.getMinutes();
+        mins = Math.max(DAY_START, Math.min(mins, DAY_END));
+        topPx = ((mins - DAY_START) / (DAY_END - DAY_START)) * canvas.offsetHeight;
+      } else {
+        return;
+      }
+      wrap.scrollTop = Math.max(0, topPx - 16);
+    }, 50);
+  }
+
   function buildDayTimelineHtml(blocks) {
     var DAY_START = 6 * 60;
     var DAY_END = 24 * 60;
     var hours = [];
-    for (var h = 6; h <= 24; h++) {
+    // 时间轴刻度按 2 小时一格（6, 8, …, 24）
+    for (var h = 6; h <= 24; h += 2) {
       var top = ((h * 60 - DAY_START) / (DAY_END - DAY_START)) * 100;
-      hours.push('<div class="tl-hour-mark' + (h % 2 === 0 ? ' major' : '') + '" style="top:' + top + '%">' +
+      hours.push('<div class="tl-hour-mark major" style="top:' + top + '%">' +
         '<span class="tl-hour-lab">' + formatHourLabel(h) + '</span></div>');
     }
     var packed = assignTimelineLanes(blocks);
@@ -2523,7 +2555,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<p class="muted week-tip">循环日常会按设定的循环方式与时段出现在时间轴；未填结束时间时默认占 1 小时</p>' +
 
       '<div class="card tl-board">' +
-      '<h3 class="tl-title">当日时间轴 <span class="muted">6:00–24:00</span></h3>' +
+      '<h3 class="tl-title">当日时间轴 <span class="muted">6:00–24:00 · 每格 2 小时</span></h3>' +
       buildDayTimelineHtml(timelineBlocks) + '</div>' +
 
       '<section class="card day-add">' +
