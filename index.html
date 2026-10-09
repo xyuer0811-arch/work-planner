@@ -3123,6 +3123,18 @@
       font-size: 14px;
       max-width: 260px;
     }
+  
+    #schedule-editor { width: min(560px, 92vw); max-height: 85dvh; overflow: auto; border: 1px solid var(--line); border-radius: 16px; padding: 20px; color: var(--ink); background: var(--panel); }
+    #schedule-editor::backdrop { background: rgba(40,45,40,.4); }
+    .schedule-editor-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+    .schedule-editor-fields label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
+    .schedule-editor-fields input, .schedule-editor-fields select { width: 100%; padding: 10px; font-size: 16px; border: 1px solid var(--line); border-radius: 8px; }
+    .schedule-editor-actions { display: flex; gap: 10px; margin-top: 16px; }
+    .schedule-editor-actions button { padding: 10px 16px; border: 0; border-radius: 8px; background: var(--accent); color: white; }
+    .editor-error { color: #a55050; }
+    .home-todos { margin-top: 18px; }
+    .done-fold-body[hidden] { display: none; }
+    @media(max-width:480px) { .schedule-editor-fields { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -9748,7 +9760,8 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<h3>经期提醒</h3><div class="agg-body">' + periodHtml + '</div></button>' +
       '<button type="button" class="card clickable agg-card" onclick="App.navigate(\'study\')">' +
       '<h3>今日学习</h3><div class="agg-body"><p>待办 ' + studyLeft + ' · 课程 ' +
-      ((state.study && state.study.courses) || []).length + '</p></div></button></div></div>';
+      ((state.study && state.study.courses) || []).length + '</p></div></button></div>' +
+      '<section class="home-todos"><h3>待办列表</h3>' + renderSchedTodos(true) + '</section></div>';
   }
 
   function renderSchedule() {
@@ -10503,7 +10516,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<section class="card"><h3>已添加日常</h3><div class="class-list">' + list + '</div></section></div>';
   }
 
-  function renderSchedTodos() {
+  function renderSchedTodos(homeOnly) {
     ensureSchedule(state);
     var open = state.schedule.todos.filter(function (t) { return !t.done; });
     var done = state.schedule.todos.filter(function (t) { return t.done; });
@@ -10533,7 +10546,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     }).join('') || '<p class="muted wk-view-empty">暂无已完成</p>';
 
     return '<div class="todo-wrap">' +
-      '<section class="card">' +
+      (homeOnly ? '' : '<section class="card">' +
       '<h3>添加待办</h3>' +
       '<div class="form-row">' +
       '<input id="todo-text" class="input" placeholder="待办内容">' +
@@ -10542,7 +10555,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<option value="1">重要</option><option value="0">不重要</option></select>' +
       '<select id="todo-urgent" class="input">' +
       '<option value="1">紧急</option><option value="0" selected>不紧急</option></select>' +
-      '<button type="button" class="btn" onclick="App.addTodo()">添加</button></div></section>' +
+      '<button type="button" class="btn" onclick="App.addTodo()">添加</button></div></section>') +
       '<div class="todo-matrix">' +
       quad(q1, '重要 · 紧急', '立刻做', 'q-do') +
       quad(q2, '重要 · 不紧急', '计划做', 'q-plan') +
@@ -11946,7 +11959,15 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
   function getDailyWords() {
     var day = state.lang.day || 0;
     var ids = getLessonBaseIds(day).concat(getLessonCarryoverIds(day));
-    return ids.map(wordById).filter(Boolean);
+    // Stable non-alphabetical display order; lesson assignments and progress stay intact.
+    return ids.map(wordById).filter(Boolean).sort(function (a, b) {
+      function rank(w) {
+        var h = 2166136261;
+        for (var i = 0; i < w.id.length; i++) h = Math.imul(h ^ w.id.charCodeAt(i), 16777619);
+        return h >>> 0;
+      }
+      return rank(a) - rank(b);
+    });
   }
 
   function wordById(id) {
@@ -12616,6 +12637,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     document.querySelectorAll('[data-mod]').forEach(function (btn) {
       btn.classList.toggle('active', btn.getAttribute('data-mod') === mod);
     });
+    attachScheduleEditors();
   }
 
   var App = {
@@ -14626,6 +14648,56 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     });
   })();
 
+  function attachScheduleEditors() {
+    document.querySelectorAll('#page button[onclick]').forEach(function (button) {
+      var match = button.getAttribute('onclick').match(/App\.(delEvent|delClass|delTodo)\('([^']+)'\)/);
+      if (!match) return;
+      var edit = document.createElement('button');
+      edit.type = 'button'; edit.className = 'schedule-edit-button'; edit.textContent = '编辑';
+      edit.addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation(); App.editScheduleRecord(match[1], match[2]);
+      });
+      button.parentNode.insertBefore(edit, button);
+    });
+  }
+
+  App.editScheduleRecord = function (kind, id) {
+    var collection = kind === 'delClass' ? state.schedule.classes : kind === 'delTodo' ? state.schedule.todos : state.schedule.events;
+    var record = collection.find(function (r) { return r.id === id; });
+    if (!record) return;
+    var previous = document.getElementById('schedule-editor'); if (previous) previous.remove();
+    var dialog = document.createElement('dialog'); dialog.id = 'schedule-editor';
+    var fields = kind === 'delClass'
+      ? [['title','名称'],['mode','循环方式','weekly|每周,weekdays|工作日,daily|每天'],['weekday','星期','0|周日,1|周一,2|周二,3|周三,4|周四,5|周五,6|周六'],['start','开始时间','time'],['end','结束时间','time'],['rangeStart','循环开始日期','date'],['rangeEnd','循环结束日期','date'],['kind','类型'],['place','地点 / 备注']]
+      : kind === 'delTodo'
+      ? [['text','待办内容'],['date','日期','date'],['important','重要程度','true|重要,false|不重要'],['urgent','紧急程度','true|紧急,false|不紧急']]
+      : [['title','标题'],['date','日期','date'],['time','开始时间','time'],['endTime','结束时间','time'],['type','日程类别','event|事件,plan|计划,ddl|DDL,special|特殊日期'],['kind','类型'],['urgency','紧急程度','normal|普通,urgent|紧急'],['note','内容备注']];
+    dialog.innerHTML = '<form><h3>编辑日程</h3><div class="schedule-editor-fields"></div><p class="editor-error" role="alert"></p><div class="schedule-editor-actions"><button type="submit">保存修改</button><button type="button" class="cancel-edit">取消</button></div></form>';
+    fields.forEach(function (f) {
+      var label = document.createElement('label'); label.textContent = f[1];
+      var input = document.createElement(f[2] && f[2].includes('|') ? 'select' : 'input');
+      input.name=f[0];
+      if (input.tagName === 'SELECT') {
+        f[2].split(',').forEach(function (o) { var parts=o.split('|'); var option=document.createElement('option'); option.value=parts[0]; option.textContent=parts[1]; input.appendChild(option); });
+      } else input.type=f[2] || 'text';
+      input.value=record[f[0]] == null ? '' : String(record[f[0]]);
+      label.appendChild(input); dialog.querySelector('.schedule-editor-fields').appendChild(label);
+    });
+    dialog.querySelector('.cancel-edit').onclick=function () { dialog.close(); dialog.remove(); };
+    dialog.querySelector('form').onsubmit=function (e) {
+      e.preventDefault(); var values={};
+      fields.forEach(function (f) { values[f[0]]=dialog.querySelector('[name="'+f[0]+'"]').value.trim(); });
+      var error = !values[fields[0][0]] ? '请填写内容' : '';
+      var start=values.start || values.time, end=values.end || values.endTime;
+      if (start && end && end <= start) error='结束时间须晚于开始时间';
+      if (values.rangeStart && values.rangeEnd && values.rangeEnd < values.rangeStart) error='循环结束日期不能早于开始日期';
+      if (error) { dialog.querySelector('.editor-error').textContent=error; return; }
+      if (kind==='delClass') values.weekday=Number(values.weekday);
+      if (kind==='delTodo') { values.important=values.important==='true'; values.urgent=values.urgent==='true'; }
+      Object.assign(record,values); save(); dialog.close(); dialog.remove(); render(); flash('已修改 ✓');
+    };
+    document.body.appendChild(dialog); dialog.showModal();
+  };
   window.App = App;
 
   document.addEventListener('DOMContentLoaded', function () {
