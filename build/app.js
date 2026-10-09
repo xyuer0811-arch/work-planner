@@ -1998,9 +1998,45 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<div class="sched-pin-row">' + pinHtml + '</div>' +
       '<div class="tabs sched-more-tabs">' + moreHtml + '</div>' +
       '</div>' + body + '</div>';
-    if (tab === 'day') scrollDayTimelineToFocus();
+    if (tab === 'day') { wireDayTimeline(); if (dayViewMode === 'timeline') scrollDayTimelineToFocus(); }
   }
 
+  var dayViewMode = 'timeline';
+  function renderDayControls(ds, events, routines) {
+    var first=mondayOf(ds), dates=weekDates(first);
+    var strip=dates.map(function(d){
+      return '<button type="button" class="day-date-chip'+(d===ds?' selected':'')+'" onclick="App.setSchedDay(\''+d+'\')"><span>周'+WEEKDAYS[new Date(d+'T12:00:00').getDay()]+'</span><strong>'+Number(d.slice(-2))+'</strong></button>';
+    }).join('');
+    var entries=events.map(function(e){return {id:e.id,title:e.title,time:e.time,end:e.endTime,kind:e.kind,urgent:e.urgency==='urgent',source:'delEvent'};})
+      .concat(routines.map(function(c){return {id:c.id,title:c.title,time:c.start,end:c.end,kind:c.kind,source:'delClass'};}))
+      .sort(function(a,b){return (a.time||'99').localeCompare(b.time||'99');});
+    var allDay=state.schedule.events.filter(function(e){return e.date===ds&&(e.type==='ddl'||e.type==='special');});
+    var list=entries.map(function(e){
+      return '<button type="button" class="day-agenda-entry" onclick="App.editScheduleRecord(\''+e.source+'\',\''+e.id+'\')"><span class="agenda-time">'+esc(e.time||'未定时')+(e.end?'<small>'+esc(e.end)+'</small>':'')+'</span><span><strong>'+esc(e.title)+'</strong><small>'+esc(e.kind||'其他')+(e.urgent?' · 紧急':'')+'</small></span><span class="agenda-edit">编辑 ›</span></button>';
+    }).join('')||'<p class="empty">今天还没有安排，点「添加」开始吧</p>';
+    return '<div class="day-date-strip">'+strip+'</div><div class="day-view-controls"><span class="muted">'+entries.length+' 项安排</span><button type="button" onclick="App.setDayView(\'timeline\')" aria-pressed="'+(dayViewMode==='timeline')+'">时间轴</button><button type="button" onclick="App.setDayView(\'agenda\')" aria-pressed="'+(dayViewMode==='agenda')+'">清单</button><button type="button" onclick="App.focusDayNow()">现在</button><button type="button" onclick="App.quickAddDay()">＋ 添加</button></div>'+
+      (allDay.length?'<div class="day-all-day">'+allDay.map(function(e){return '<button type="button" onclick="App.editScheduleRecord(\'delEvent\',\''+e.id+'\')">'+(e.type==='ddl'?'DDL · ':'特殊日期 · ')+esc(e.title)+'</button>';}).join('')+'</div>':'')+
+      '<section class="card day-agenda"'+(dayViewMode==='agenda'?'':' hidden')+'>'+list+'</section>';
+  }
+  function wireDayTimeline() {
+    var board=document.querySelector('.tl-board'); if(board) board.hidden=dayViewMode!=='timeline';
+    var track=document.querySelector('.tl-track');
+    if (!track) return;
+    track.addEventListener('click',function(e){
+      var block=e.target.closest('.tl-block');
+      if(block){
+        if(e.target.closest('button')) return;
+        App.editScheduleRecord(block.dataset.recordSource === 'class' ? 'delClass' : 'delEvent',block.dataset.recordId); return;
+      }
+      var rect=track.getBoundingClientRect();
+      var mins=Math.min(1410,Math.max(360,Math.round((e.clientY-rect.top)/rect.height*1080/30)*30+360));
+      App.quickAddDay(mins);
+    });
+    if((state._schedDay||todayStr())===todayStr()){
+      var now=new Date(), m=now.getHours()*60+now.getMinutes();
+      if(m>=360&&m<=1440){var line=document.createElement('div');line.className='day-now-line';line.style.top=((m-360)/1080*100)+'%';line.textContent='现在 '+minsToLabel(m);track.appendChild(line);}
+    }
+  }
   function currentSchedMonth() {
     if (state._schedMonth && /^\d{4}-\d{2}$/.test(state._schedMonth)) return state._schedMonth;
     var t = todayStr();
@@ -2488,7 +2524,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         ? '<button type="button" class="wk-x" onclick="event.stopPropagation();App.delEvent(\'' + it.id + '\')">×</button>'
         : '';
       var timeLab = minsToLabel(it.start) + '–' + minsToLabel(it.end);
-      return '<div class="tl-block' + (it.urgency === 'urgent' ? ' urgent' : '') + '" style="' +
+      return '<div data-record-source="' + it.source + '" data-record-id="' + esc(it.source === 'class' ? it.id.replace(/^c-/, '') : it.id) + '" class="tl-block' + (it.urgency === 'urgent' ? ' urgent' : '') + '" style="' +
         'top:' + it.topPct + '%;height:' + Math.max(it.heightPct, 2.2) + '%;' +
         'left:calc(' + left + '% + 2px);width:calc(' + w + '% - 4px);' +
         'background:' + softBg(col) + ';color:' + col + ';border:' + border + '">' +
@@ -2610,10 +2646,11 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
 
     return '<div class="day-wrap">' +
       '<div class="cal-toolbar">' +
-      '<button type="button" class="btn-ghost" onclick="App.shiftDay(-1)">‹ 昨天</button>' +
+      '<button type="button" class="btn-ghost" onclick="App.shiftDay(-1)" aria-label="前一天">‹</button>' +
       '<div class="day-nav"><input type="date" id="sched-day-pick" value="' + ds + '" onchange="App.setSchedDay(this.value)">' +
       '<span class="muted">周' + WEEKDAYS[wd] + (isToday ? ' · 今天' : '') + ' · 按开始–结束时间占位</span></div>' +
-      '<button type="button" class="btn-ghost" onclick="App.shiftDay(1)">明天 ›</button></div>' +
+      '<button type="button" class="btn-ghost" onclick="App.shiftDay(1)" aria-label="后一天">›</button></div>' +
+      renderDayControls(ds, dayEvents, dayClasses) +
       (!isToday ? '<div class="day-today-bar"><button type="button" class="btn" onclick="App.goSchedToday()">一键回到今天</button></div>' : '') +
       '<p class="muted week-tip">循环日常会按设定的循环方式与时段出现在时间轴；未填结束时间时默认占 1 小时</p>' +
 
@@ -2621,7 +2658,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<h3 class="tl-title">当日时间轴 <span class="muted">6:00–24:00 · 每格 2 小时</span></h3>' +
       buildDayTimelineHtml(timelineBlocks) + '</div>' +
 
-      '<section class="card day-add">' +
+      '<details class="card day-add" id="day-compose"><summary>＋ 添加日程</summary>' +
       '<h3>添加事件 / 计划（同步到周计划）</h3>' +
       '<p class="muted month-hint">与周计划共用同一份数据；请选择开始与结束时间，事件会占据时间轴对应高度。</p>' +
       '<div class="form-row">' +
@@ -2633,7 +2670,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<option value="normal">普通（虚线）</option><option value="urgent">紧急（实线）</option></select>' +
       '<input id="day-note" class="input" placeholder="备注（可选）">' +
       '<button type="button" class="btn" onclick="App.addDayItem()">添加</button></div>' +
-      '<div class="day-type-manage">' +
+      '<details class="day-type-manage"><summary>管理类型与颜色</summary>' +
       '<span class="wk-lab">事件类型与颜色</span>' +
       '<div class="form-row day-type-row">' +
       '<input id="day-type-new" class="input" placeholder="新类型名称">' +
@@ -2652,7 +2689,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<input type="hidden" id="day-type-color" value="' + selectedTypeColor() + '">' +
       '</div>' +
       '<button type="button" class="btn-ghost" onclick="App.addDayType()">添加类型</button></div>' +
-      '<div class="day-type-list">' + typeList + '</div></div></section>' +
+      '<div class="day-type-list">' + typeList + '</div></details></details>' +
 
       '<section class="card day-urgency">' +
       '<h3>按紧急程度</h3>' +
@@ -6898,6 +6935,17 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       Object.assign(record,values); save(); dialog.close(); dialog.remove(); render(); flash('已修改 ✓');
     };
     document.body.appendChild(dialog); dialog.showModal();
+  };
+  App.setDayView=function(mode){dayViewMode=mode;render();};
+  App.quickAddDay=function(mins){
+    var form=document.getElementById('day-compose');if(!form)return;form.open=true;
+    if(typeof mins==='number') { document.getElementById('day-time').value=minsToLabel(mins);document.getElementById('day-end').value=minsToLabel(Math.min(1439,mins+60)); }
+    form.scrollIntoView({block:'center'});document.getElementById('day-title').focus();
+  };
+  App.focusDayNow=function(){
+    if((state._schedDay||todayStr())!==todayStr()){state._schedDay=todayStr();dayViewMode='timeline';render();}
+    var wrap=document.querySelector('.tl-scale-wrap'),canvas=document.querySelector('.tl-canvas'),now=new Date();
+    if(wrap&&canvas) wrap.scrollTop=Math.max(0,(Math.max(360,now.getHours()*60+now.getMinutes())-360)/1080*canvas.offsetHeight-60);
   };
   window.App = App;
 
