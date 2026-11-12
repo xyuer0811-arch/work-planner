@@ -1919,6 +1919,52 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
     return picked;
   }
 
+  var focusBoard = new URLSearchParams(window.location.search).get('view') === 'focus';
+
+  function renderFocusBoard() {
+    ensureSchedule(state);
+    var today = todayStr();
+    var ddls = getUpcomingDdls(14);
+    var open = state.schedule.todos.filter(function (t) { return !t.done; });
+    var done = state.schedule.todos.filter(function (t) { return t.done; });
+    open.sort(function (a, b) {
+      return Number(!!b.urgent) - Number(!!a.urgent) ||
+        Number(!!b.important) - Number(!!a.important) ||
+        (a.date || '9999').localeCompare(b.date || '9999');
+    });
+    function todoRows(items) {
+      return items.map(function (t) {
+        var info = [t.urgent ? '紧急' : '', t.important ? '重要' : '', t.date].filter(Boolean).join(' · ');
+        return '<li><span class="focus-mark" aria-hidden="true">' + (t.done ? '✓' : '○') + '</span>' +
+          '<span class="focus-item"><strong>' + esc(t.text) + '</strong>' +
+          (info ? '<small>' + esc(info) + '</small>' : '') + '</span></li>';
+      }).join('');
+    }
+    var dates = ddls.map(function (e) {
+      return '<li><span class="focus-date' + (e.date === today ? ' is-today' : '') + '">' +
+        (e.date === today ? '今天' : esc(e.date.slice(5))) + '</span>' +
+        '<span class="focus-item"><strong>' + esc(e.title) + '</strong></span></li>';
+    }).join('');
+    document.getElementById('page').innerHTML = '<div class="focus-board">' +
+      '<header class="focus-hero"><div><span class="focus-kicker">🐟 小鱼生活台 · ' + esc(today) + '</span>' +
+      '<h1>小鱼专注板</h1><p>把要紧的事放在眼前，一件件来。</p></div>' +
+      '<a class="focus-link" href="./index.html">打开生活台 ↗</a></header>' +
+      '<div class="focus-grid">' +
+      '<section class="focus-panel focus-deadlines"><h2>DDL 提醒 <span>' + ddls.length + '</span></h2><p>今天起 14 天内的截止事项</p>' +
+      (dates ? '<ul>' + dates + '</ul>' : '<p class="focus-empty">近期没有截止事项</p>') + '</section>' +
+      '<section class="focus-panel focus-todos"><h2>待办 <span>' + open.length + '</span></h2><p>紧急和重要的事优先显示</p>' +
+      (open.length ? '<ul>' + todoRows(open) + '</ul>' : '<p class="focus-empty">没有未完成的待办</p>') +
+      (done.length ? '<details' + (focusDoneExpanded ? ' open' : '') + ' ontoggle="App.rememberFocusDone(this.open)"><summary>已完成 · ' + done.length + '</summary><ul>' + todoRows(done) + '</ul></details>' : '') +
+      '</section></div>' +
+      '<details class="focus-install"><summary>添加到电脑或手机主屏幕</summary>' +
+      '<p><strong>iPhone / iPad：</strong>在 Safari 打开本页，点分享 → 添加到主屏幕。</p>' +
+      '<p><strong>Android / 电脑：</strong>在 Chrome 菜单中选择安装应用或创建快捷方式。电脑上也可将安装后的应用固定到任务栏。</p>' +
+      '<button type="button" class="btn" onclick="App.promptA2hs()">尝试一键安装</button>' +
+      '<p>这是打开专注板的图标。编辑事项请打开生活台；换设备后可登录原来的云同步账号。</p></details></div>';
+  }
+
+  var focusDoneExpanded = false;
+
   function renderHome() {
     var ddls = getUpcomingDdls(14);
     var period = predictNextPeriod();
@@ -1954,6 +2000,8 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<input class="input" id="scrap-text" placeholder="随手记一件事…" autocomplete="off">' +
       '<button type="button" class="btn scrap-add" onclick="App.addScrap()">记下</button></div>' +
       '<div class="scrap-list">' + scrapList + '</div></section>' +
+      '<div class="home-focus-entry"><div><strong>🐟 小鱼专注板</strong><small>一屏查看 DDL 和待办</small></div>' +
+      '<a class="focus-link" href="?view=focus">打开专注板 ↗</a></div>' +
       '<div class="cards-agg">' +
       '<button type="button" class="card clickable agg-card" onclick="App.navigate(\'schedule\')">' +
       '<h3>ddl提醒</h3><div class="agg-body"><ul class="agg-list">' + ddlHtml + '</ul></div></button>' +
@@ -4859,6 +4907,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         '<div class="row mt"><button class="btn" onclick="App.importSettings()">尝试导入</button></div>';
       return;
     }
+    if (focusBoard) { renderFocusBoard(); return; }
     var mod = state._mod || 'home';
     if (mod === 'home') renderHome();
     else if (mod === 'schedule') renderSchedule();
@@ -4880,6 +4929,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
 
   var App = {
     navigate: navigate,
+    rememberFocusDone: function (open) { focusDoneExpanded = open; },
     addScrap: function () {
       var text = (document.getElementById('scrap-text').value || '').trim();
       if (!text) return;
@@ -6951,6 +7001,25 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
 
   document.addEventListener('DOMContentLoaded', function () {
     load();
+    if (focusBoard) {
+      window.addEventListener('storage', function (event) {
+        if (event.key !== STORAGE_KEY || event.storageArea !== localStorage || !event.newValue) return;
+        try {
+          var next = JSON.parse(event.newValue);
+          if (!next || typeof next !== 'object' || Array.isArray(next)) return;
+          try { next = migrate(next); } catch (e) { /* preserve original data */ }
+          ensureAll(next);
+          state = next;
+          render();
+        } catch (e) { /* leave the current board visible */ }
+      });
+      var boardDate = todayStr();
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden || todayStr() === boardDate) return;
+        boardDate = todayStr();
+        render();
+      });
+    }
     document.querySelectorAll('[data-mod]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         navigate(btn.getAttribute('data-mod'));
