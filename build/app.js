@@ -1473,12 +1473,12 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) {
       flash('保存失败');
-      return;
+      return false;
     }
-    if (opts.skipCloud) return;
+    if (opts.skipCloud) return true;
     if (_cloudSkipPush) {
       _cloudSkipPush = false;
-      return;
+      return true;
     }
     if (_sbUser) {
       var meta = loadSyncMeta();
@@ -1488,6 +1488,7 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       saveSyncMeta(meta);
       scheduleCloudPush();
     }
+    return true;
   }
 
   var _sbClient = null;
@@ -1937,7 +1938,10 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         var info = [t.urgent ? '紧急' : '', t.important ? '重要' : '', t.date].filter(Boolean).join(' · ');
         return '<li><span class="focus-mark" aria-hidden="true">' + (t.done ? '✓' : '○') + '</span>' +
           '<span class="focus-item"><strong>' + esc(t.text) + '</strong>' +
-          (info ? '<small>' + esc(info) + '</small>' : '') + '</span></li>';
+          (info ? '<small>' + esc(info) + '</small>' : '') + '</span>' +
+          '<button type="button" class="focus-action" data-focus-todo="' + esc(t.id) +
+          '" data-complete="' + (!t.done) + '" aria-label="' + (t.done ? '撤回：' : '完成：') +
+          esc(t.text) + '">' + (t.done ? '撤回' : '完成') + '</button></li>';
       }).join('');
     }
     var dates = ddls.map(function (e) {
@@ -1946,13 +1950,14 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
         '<span class="focus-item"><strong>' + esc(e.title) + '</strong></span></li>';
     }).join('');
     document.getElementById('page').innerHTML = '<div class="focus-board">' +
-      '<header class="focus-hero"><div><span class="focus-kicker">🐟 小鱼生活台 · ' + esc(today) + '</span>' +
-      '<h1>小鱼专注板</h1><p>把要紧的事放在眼前，一件件来。</p></div>' +
+      '<header class="focus-hero"><div><span class="focus-kicker"><span aria-hidden="true">🦄 🌈</span> · ' + esc(today) + '</span>' +
+      '<h1>小鱼专注板</h1></div>' +
       '<a class="focus-link" href="./index.html">打开生活台 ↗</a></header>' +
       '<div class="focus-grid">' +
       '<section class="focus-panel focus-deadlines"><h2>DDL 提醒 <span>' + ddls.length + '</span></h2><p>今天起 14 天内的截止事项</p>' +
       (dates ? '<ul>' + dates + '</ul>' : '<p class="focus-empty">近期没有截止事项</p>') + '</section>' +
-      '<section class="focus-panel focus-todos"><h2>待办 <span>' + open.length + '</span></h2><p>紧急和重要的事优先显示</p>' +
+      '<section class="focus-panel focus-todos"><h2>待办 <span>' + open.length + '</span></h2>' +
+      '<div id="focus-feedback" class="focus-feedback" role="status" tabindex="-1"></div>' +
       (open.length ? '<ul>' + todoRows(open) + '</ul>' : '<p class="focus-empty">没有未完成的待办</p>') +
       (done.length ? '<details' + (focusDoneExpanded ? ' open' : '') + ' ontoggle="App.rememberFocusDone(this.open)"><summary>已完成 · ' + done.length + '</summary><ul>' + todoRows(done) + '</ul></details>' : '') +
       '</section></div>' +
@@ -1960,10 +1965,40 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
       '<p><strong>iPhone / iPad：</strong>在 Safari 打开本页，点分享 → 添加到主屏幕。</p>' +
       '<p><strong>Android / 电脑：</strong>在 Chrome 菜单中选择安装应用或创建快捷方式。电脑上也可将安装后的应用固定到任务栏。</p>' +
       '<button type="button" class="btn" onclick="App.promptA2hs()">尝试一键安装</button>' +
-      '<p>这是打开专注板的图标。编辑事项请打开生活台；换设备后可登录原来的云同步账号。</p></details></div>';
+      '<p>换设备后，可登录原来的云同步账号。</p></details></div>';
   }
 
   var focusDoneExpanded = false;
+
+  function readSharedState(raw) {
+    var next = JSON.parse(raw);
+    if (!next || typeof next !== 'object' || Array.isArray(next)) return null;
+    try { next = migrate(next); } catch (e) { /* preserve original data */ }
+    ensureAll(next);
+    return next;
+  }
+
+  function changeFocusTodo(id, complete) {
+    try {
+      var latest = readSharedState(localStorage.getItem(STORAGE_KEY));
+      var todo = latest && latest.schedule.todos.find(function (item) { return String(item.id) === id; });
+      if (!todo || !!todo.done === complete) { if (latest) { state = latest; render(); } return; }
+      if (complete && !window.confirm('确认完成「' + todo.text + '」？')) return;
+      // Read again after confirmation in case another window changed the list.
+      latest = readSharedState(localStorage.getItem(STORAGE_KEY));
+      todo = latest && latest.schedule.todos.find(function (item) { return String(item.id) === id; });
+      if (!todo || !!todo.done === complete) { if (latest) { state = latest; render(); } return; }
+      todo.done = complete;
+      state = latest;
+      if (!save()) { todo.done = !complete; return; }
+      render();
+      var feedback = document.getElementById('focus-feedback');
+      feedback.textContent = complete ? '已完成' : '已撤回，重新列入待办';
+      feedback.focus();
+    } catch (e) {
+      flash('无法更新待办，请重新打开专注板');
+    }
+  }
 
   function renderHome() {
     var ddls = getUpcomingDdls(14);
@@ -7001,17 +7036,35 @@ var WORDS = (typeof IELTS_WORDS !== 'undefined' ? IELTS_WORDS : window.IELTS_WOR
 
   document.addEventListener('DOMContentLoaded', function () {
     load();
-    if (focusBoard) {
-      window.addEventListener('storage', function (event) {
-        if (event.key !== STORAGE_KEY || event.storageArea !== localStorage || !event.newValue) return;
-        try {
-          var next = JSON.parse(event.newValue);
-          if (!next || typeof next !== 'object' || Array.isArray(next)) return;
-          try { next = migrate(next); } catch (e) { /* preserve original data */ }
-          ensureAll(next);
+    window.addEventListener('storage', function (event) {
+      if (event.key !== STORAGE_KEY || event.storageArea !== localStorage || !event.newValue) return;
+      try {
+        var next = readSharedState(event.newValue);
+        if (!next) return;
+        if (focusBoard) {
           state = next;
           render();
-        } catch (e) { /* leave the current board visible */ }
+          return;
+        }
+        if (state.__corrupt || !event.oldValue) return;
+        var previous = readSharedState(event.oldValue);
+        if (!previous) return;
+        var previousTodos = new Map(previous.schedule.todos.map(function (todo) { return [todo.id, !!todo.done]; }));
+        var changed = new Map(next.schedule.todos.filter(function (todo) {
+          return previousTodos.has(todo.id) && previousTodos.get(todo.id) !== !!todo.done;
+        }).map(function (todo) { return [todo.id, !!todo.done]; }));
+        if (!changed.size) return;
+        state.schedule.todos.forEach(function (todo) {
+          if (changed.has(todo.id)) todo.done = changed.get(todo.id);
+        });
+        if ((state._mod === 'home' || (state._mod === 'schedule' && state._schedTab === 'todos')) &&
+            !document.activeElement.matches('input, textarea, select, [contenteditable]')) render();
+      } catch (e) { /* leave the current view visible */ }
+    });
+    if (focusBoard) {
+      document.getElementById('page').addEventListener('click', function (event) {
+        var button = event.target.closest('[data-focus-todo]');
+        if (button) changeFocusTodo(button.dataset.focusTodo, button.dataset.complete === 'true');
       });
       var boardDate = todayStr();
       document.addEventListener('visibilitychange', function () {
