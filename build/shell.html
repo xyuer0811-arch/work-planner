@@ -3193,12 +3193,31 @@
     .focus-panel .focus-empty { padding:10px; background:#f7e3f3; border-radius:9px; margin-top:12px; }
     .focus-board summary { cursor:pointer; font-weight:700; padding:9px 0; }
     .focus-install { padding-block:5px 10px; }
-    .focus-mode .focus-link, #page .focus-install button, #page .focus-board button.focus-action {
+    .focus-mode .focus-link, #page .focus-install button {
       background:#852e72; color:#fff5fc; border:1px solid transparent; margin:0;
     }
-    #page .focus-board button.focus-action { flex:none; margin-inline-start:auto; min-height:44px; padding:7px 12px; font-size:14px; }
-    #page .focus-todos details button.focus-action { background:#efddf9; color:#623878; border-color:#dec2eb; }
-    .focus-mode .focus-link:hover, #page .focus-board button.focus-action:hover { filter:brightness(.93); }
+    #page .focus-board button.focus-action {
+      flex:none; margin:0 0 0 auto; min-height:44px; padding:7px 15px;
+      border-radius:999px; border:1px solid #edbfd8;
+      background:linear-gradient(145deg,#fff6fb,#f9dbea 75%);
+      color:#713754; box-shadow:inset 0 1px 0 #fff,0 2px 0 #eec7db;
+      font-size:14px; font-weight:700;
+    }
+    .focus-todos details {
+      margin-top:12px; padding:0 12px; border-radius:16px;
+      background:#f8efff; border:1px solid #ead9f3; color:#694d79;
+    }
+    .focus-todos details ul { margin-top:0; }
+    .focus-todos details li { border-color:#ead9f3; }
+    .focus-todos details .focus-mark { color:#7c5690; }
+    #page .focus-todos details button.focus-action {
+      background:linear-gradient(145deg,#fdf8ff,#ecdefa 75%);
+      color:#654378; border-color:#dac3ea;
+      box-shadow:inset 0 1px 0 #fff,0 2px 0 #e2cdee;
+    }
+    .focus-mode .focus-link:hover { filter:brightness(.93); }
+    #page .focus-board button.focus-action:hover { filter:saturate(1.2); }
+    #page .focus-board button.focus-action:active { transform:translateY(1px); }
     .focus-mode :is(.focus-link, summary, button):focus-visible { outline:3px solid #a74c91; outline-offset:3px; }
     .focus-feedback { color:#78255f; font-weight:700; }
     .focus-feedback:not(:empty) { padding:6px 0; }
